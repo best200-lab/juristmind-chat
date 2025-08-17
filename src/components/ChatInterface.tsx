@@ -48,46 +48,14 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gradient-surface">
-      {/* Header */}
-      <div className="flex-shrink-0 p-6 border-b border-border bg-card">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center shadow-glow">
-              <span className="text-2xl font-bold text-primary-foreground">⚖</span>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">JURIST MIND</h1>
-              <p className="text-muted-foreground">Legal AI Assistant</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div className="flex flex-col h-full bg-background">
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto p-6">
           {messages.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-24 h-24 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-6 shadow-glow">
-                <span className="text-4xl text-primary-foreground">⚖</span>
-              </div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">JURIST MIND</h2>
-              <p className="text-lg text-muted-foreground mb-8">Your Professional Legal AI Assistant</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-                <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">Contract Analysis</p>
-                    <p className="font-medium">Review legal documents</p>
-                  </CardContent>
-                </Card>
-                <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">Legal Research</p>
-                    <p className="font-medium">Find relevant case law</p>
-                  </CardContent>
-                </Card>
-              </div>
+            <div className="text-center py-20">
+              <h2 className="text-4xl font-bold text-foreground mb-8">JURIST MIND</h2>
+              <p className="text-lg text-muted-foreground mb-12">What do you want to know?</p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -116,43 +84,43 @@ export function ChatInterface() {
       </div>
 
       {/* Input Area */}
-      <div className="flex-shrink-0 p-6 border-t border-border bg-card">
+      <div className="flex-shrink-0 p-6">
         <div className="max-w-4xl mx-auto">
-          <div className="flex gap-3 items-end">
+          <div className="flex gap-3 items-center">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="p-2 h-10 w-10 rounded-full"
+            >
+              <Paperclip className="w-5 h-5" />
+            </Button>
             <div className="flex-1 relative">
               <Input
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="What legal question can I help you with today?"
-                className="pr-12 py-3 text-base bg-background border-border focus:ring-primary focus:border-primary"
+                placeholder="What do you want to know?"
+                className="pr-20 py-3 text-base bg-input border-border focus:ring-primary focus:border-primary rounded-full"
               />
-              <Button
-                size="sm"
-                variant="ghost"
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 h-8 w-8"
-              >
-                <Paperclip className="w-4 h-4" />
-              </Button>
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="p-2 h-8 w-8 rounded-full"
+                >
+                  <Mic className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!inputValue.trim()}
+                  size="sm"
+                  className="p-2 h-8 w-8 rounded-full bg-primary hover:bg-primary-hover"
+                >
+                  <Send className="w-3 h-3" />
+                </Button>
+              </div>
             </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="p-2 h-10 w-10"
-            >
-              <Mic className="w-5 h-5" />
-            </Button>
-            <Button
-              onClick={handleSendMessage}
-              disabled={!inputValue.trim()}
-              className="px-6 py-3 bg-gradient-primary hover:shadow-glow transition-all"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
           </div>
-          <p className="text-xs text-muted-foreground mt-2 text-center">
-            JURIST MIND can make mistakes. Please verify important legal information.
-          </p>
         </div>
       </div>
     </div>

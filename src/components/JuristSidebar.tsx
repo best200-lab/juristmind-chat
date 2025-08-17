@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, MessageCircle, Scale, History, Menu, X, User } from "lucide-react";
+import { Search, MessageCircle, Scale, History, Menu, X, User, ShoppingBag, Briefcase, FileText, BookOpen, FolderOpen, Crown } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -19,6 +19,12 @@ const navigationItems = [
   { title: "Search", url: "/search", icon: Search },
   { title: "Chat", url: "/", icon: MessageCircle },
   { title: "JTL", url: "/jtl", icon: Scale },
+  { title: "Marketplace", url: "/marketplace", icon: ShoppingBag },
+  { title: "Find/Post Jobs", url: "/jobs", icon: Briefcase },
+  { title: "Judge Notes", url: "/judge-notes", icon: FileText },
+  { title: "Diary", url: "/diary", icon: BookOpen },
+  { title: "Cases", url: "/cases", icon: FolderOpen },
+  { title: "Upgrade", url: "/upgrade", icon: Crown },
   { title: "History", url: "/history", icon: History },
 ];
 

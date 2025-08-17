@@ -9,6 +9,12 @@ import { TopHeader } from "@/components/TopHeader";
 import Index from "./pages/Index";
 import Search from "./pages/Search";
 import JTL from "./pages/JTL";
+import Marketplace from "./pages/Marketplace";
+import Jobs from "./pages/Jobs";
+import JudgeNotes from "./pages/JudgeNotes";
+import Diary from "./pages/Diary";
+import Cases from "./pages/Cases";
+import Upgrade from "./pages/Upgrade";
 import History from "./pages/History";
 import NotFound from "./pages/NotFound";
 
@@ -30,6 +36,12 @@ const App = () => (
                   <Route path="/" element={<Index />} />
                   <Route path="/search" element={<Search />} />
                   <Route path="/jtl" element={<JTL />} />
+                  <Route path="/marketplace" element={<Marketplace />} />
+                  <Route path="/jobs" element={<Jobs />} />
+                  <Route path="/judge-notes" element={<JudgeNotes />} />
+                  <Route path="/diary" element={<Diary />} />
+                  <Route path="/cases" element={<Cases />} />
+                  <Route path="/upgrade" element={<Upgrade />} />
                   <Route path="/history" element={<History />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

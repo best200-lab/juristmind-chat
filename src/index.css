@@ -8,81 +8,63 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Professional Legal AI Theme */
-    --background: 0 0% 99%;
-    --foreground: 210 24% 16%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 210 24% 16%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 24% 16%;
-
-    /* Legal Professional Blue */
-    --primary: 210 100% 40%;
-    --primary-foreground: 0 0% 98%;
-    --primary-hover: 210 100% 35%;
-
-    /* Subtle Gray Backgrounds */
-    --secondary: 210 40% 98%;
-    --secondary-foreground: 210 24% 16%;
-
-    --muted: 210 40% 96%;
-    --muted-foreground: 210 16% 50%;
-
-    /* Gold Accent for Legal Theme */
-    --accent: 43 74% 66%;
-    --accent-foreground: 210 24% 16%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 210 20% 90%;
-    --input: 210 20% 96%;
-    --ring: 210 100% 40%;
-
-    /* Professional Sidebar */
-    --sidebar-background: 210 30% 8%;
-    --sidebar-foreground: 210 20% 85%;
-    --sidebar-primary: 210 100% 40%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 210 30% 12%;
-    --sidebar-accent-foreground: 210 20% 85%;
-    --sidebar-border: 210 30% 15%;
-    --sidebar-ring: 210 100% 40%;
+    /* Elegant Black with Brilliance Blue */
+    --background: 220 20% 4%;
+    --foreground: 210 20% 95%;
+    
+    --card: 215 25% 6%;
+    --card-foreground: 210 15% 92%;
+    
+    --popover: 215 25% 6%;
+    --popover-foreground: 210 15% 92%;
+    
+    /* Brilliance Blue */
+    --primary: 210 100% 60%;
+    --primary-foreground: 220 20% 5%;
+    --primary-hover: 210 95% 65%;
+    
+    --secondary: 215 25% 8%;
+    --secondary-foreground: 210 15% 85%;
+    
+    --muted: 215 20% 6%;
+    --muted-foreground: 210 10% 70%;
+    
+    --accent: 210 100% 65%;
+    --accent-foreground: 220 20% 5%;
+    
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 0 15% 95%;
+    
+    --border: 215 25% 12%;
+    --input: 215 25% 8%;
+    --ring: 210 100% 60%;
+    
+    /* Sidebar */
+    --sidebar-background: 220 25% 3%;
+    --sidebar-foreground: 210 15% 88%;
+    --sidebar-primary: 210 100% 60%;
+    --sidebar-primary-foreground: 220 20% 5%;
+    --sidebar-accent: 215 25% 8%;
+    --sidebar-accent-foreground: 210 15% 92%;
+    --sidebar-border: 215 25% 10%;
+    --sidebar-ring: 210 100% 60%;
 
     --radius: 0.75rem;
 
-    /* Professional Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(210 100% 40%), hsl(210 100% 50%));
-    --gradient-surface: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 40% 98%));
-    --gradient-accent: linear-gradient(135deg, hsl(43 74% 66%), hsl(43 74% 76%));
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(210, 100%, 60%), hsl(220, 95%, 70%));
+    --gradient-surface: linear-gradient(180deg, hsl(220, 20%, 4%), hsl(215, 25%, 6%));
+    --gradient-accent: linear-gradient(135deg, hsl(210, 100%, 65%), hsl(200, 95%, 75%));
 
-    /* Professional Shadows */
-    --shadow-sm: 0 2px 4px hsl(210 20% 20% / 0.05);
-    --shadow-md: 0 4px 12px hsl(210 20% 20% / 0.08);
-    --shadow-lg: 0 8px 24px hsl(210 20% 20% / 0.12);
-    --shadow-glow: 0 0 32px hsl(210 100% 40% / 0.15);
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(220 25% 2% / 0.3);
+    --shadow-md: 0 4px 6px -1px hsl(220 25% 2% / 0.4), 0 2px 4px -1px hsl(220 25% 2% / 0.2);
+    --shadow-lg: 0 10px 15px -3px hsl(220 25% 2% / 0.5), 0 4px 6px -2px hsl(220 25% 2% / 0.3);
+    --shadow-glow: 0 0 25px hsl(210 100% 60% / 0.4);
 
-    /* Smooth Transitions */
+    /* Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --transition-fast: all 0.15s ease-out;
   }
 
   .dark {
