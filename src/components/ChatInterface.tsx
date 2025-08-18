@@ -3,6 +3,8 @@ import { Send, Mic, Paperclip, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   id: string;
@@ -14,9 +16,20 @@ interface Message {
 export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to chat with JURIST MIND",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const newMessage: Message = {
       id: Date.now().toString(),
@@ -27,17 +40,50 @@ export function ChatInterface() {
 
     setMessages([...messages, newMessage]);
     setInputValue("");
+    setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      // Call your Python backend with Grok API
+      const response = await fetch('http://127.0.0.1:8000/ask', {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: newMessage.content })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get AI response');
+      }
+
+      const data = await response.json();
+      
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
-        content: "I'm JURIST MIND, your legal AI assistant. How can I help you with legal questions today?",
+        content: data.answer || "I'm JURIST MIND, your legal AI assistant. How can I help you with legal questions today?",
         sender: "ai",
         timestamp: new Date(),
       };
+      
       setMessages(prev => [...prev, aiResponse]);
-    }, 1000);
+    } catch (error) {
+      console.error('Error calling AI:', error);
+      toast({
+        title: "Error",
+        description: "Failed to connect to AI assistant. Please check if your backend is running.",
+        variant: "destructive",
+      });
+      
+      // Fallback response
+      const errorResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "I'm having trouble connecting right now. Please make sure your backend server is running on http://127.0.0.1:8000",
+        sender: "ai",
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorResponse]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -55,7 +101,17 @@ export function ChatInterface() {
           {messages.length === 0 ? (
             <div className="text-center py-20">
               <h2 className="text-4xl font-bold text-foreground mb-8">JURIST MIND</h2>
-              <p className="text-lg text-muted-foreground mb-12">What do you want to know?</p>
+              <p className="text-lg text-muted-foreground mb-12">
+                {user ? "What do you want to know?" : "Please sign in to start chatting"}
+              </p>
+              {!user && (
+                <Button 
+                  onClick={() => window.location.href = '/auth'}
+                  className="mt-4"
+                >
+                  Sign In to Continue
+                </Button>
+              )}
             </div>
           ) : (
             <div className="space-y-6">
@@ -112,7 +168,7 @@ export function ChatInterface() {
                 </Button>
                 <Button
                   onClick={handleSendMessage}
-                  disabled={!inputValue.trim()}
+                  disabled={!inputValue.trim() || isLoading || !user}
                   size="sm"
                   className="p-2 h-8 w-8 rounded-full bg-primary hover:bg-primary-hover"
                 >
