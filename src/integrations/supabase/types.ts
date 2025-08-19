@@ -14,6 +14,384 @@ export type Database = {
   }
   public: {
     Tables: {
+      cart_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          product_id: string
+          quantity: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          product_id: string
+          quantity?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          product_id?: string
+          quantity?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cart_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cases: {
+        Row: {
+          case_number: string | null
+          case_type: string
+          client_name: string
+          created_at: string | null
+          description: string | null
+          id: string
+          next_hearing: string | null
+          priority: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          case_number?: string | null
+          case_type: string
+          client_name: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          next_hearing?: string | null
+          priority?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          case_number?: string | null
+          case_type?: string
+          client_name?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          next_hearing?: string | null
+          priority?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      diary_entries: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          entry_date: string
+          entry_time: string | null
+          entry_type: string
+          id: string
+          priority: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          entry_date: string
+          entry_time?: string | null
+          entry_type: string
+          id?: string
+          priority?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          entry_date?: string
+          entry_time?: string | null
+          entry_type?: string
+          id?: string
+          priority?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      job_applications: {
+        Row: {
+          applicant_id: string
+          cover_letter: string | null
+          created_at: string | null
+          id: string
+          job_id: string
+          status: string | null
+        }
+        Insert: {
+          applicant_id: string
+          cover_letter?: string | null
+          created_at?: string | null
+          id?: string
+          job_id: string
+          status?: string | null
+        }
+        Update: {
+          applicant_id?: string
+          cover_letter?: string | null
+          created_at?: string | null
+          id?: string
+          job_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          applications_count: number | null
+          company: string
+          created_at: string | null
+          description: string
+          id: string
+          job_type: string
+          location: string
+          posted_by: string
+          salary_range: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          applications_count?: number | null
+          company: string
+          created_at?: string | null
+          description: string
+          id?: string
+          job_type: string
+          location: string
+          posted_by: string
+          salary_range?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          applications_count?: number | null
+          company?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          job_type?: string
+          location?: string
+          posted_by?: string
+          salary_range?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      lawyers: {
+        Row: {
+          bar_number: string | null
+          city: string | null
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+          phone: string | null
+          rating: number | null
+          specialization: string[] | null
+          state: string
+          total_ratings: number | null
+          updated_at: string | null
+          user_id: string | null
+          verified: boolean | null
+          years_experience: number | null
+        }
+        Insert: {
+          bar_number?: string | null
+          city?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          name: string
+          phone?: string | null
+          rating?: number | null
+          specialization?: string[] | null
+          state: string
+          total_ratings?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+          verified?: boolean | null
+          years_experience?: number | null
+        }
+        Update: {
+          bar_number?: string | null
+          city?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          rating?: number | null
+          specialization?: string[] | null
+          state?: string
+          total_ratings?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+          verified?: boolean | null
+          years_experience?: number | null
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          buyer_id: string
+          created_at: string | null
+          delivery_status: string | null
+          id: string
+          payment_status: string | null
+          product_id: string
+          quantity: number
+          seller_id: string
+          seller_paid: boolean | null
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          buyer_id: string
+          created_at?: string | null
+          delivery_status?: string | null
+          id?: string
+          payment_status?: string | null
+          product_id: string
+          quantity: number
+          seller_id: string
+          seller_paid?: boolean | null
+          total_amount: number
+          updated_at?: string | null
+        }
+        Update: {
+          buyer_id?: string
+          created_at?: string | null
+          delivery_status?: string | null
+          id?: string
+          payment_status?: string | null
+          product_id?: string
+          quantity?: number
+          seller_id?: string
+          seller_paid?: boolean | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string | null
+          currency: string | null
+          id: string
+          payment_type: string
+          paystack_reference: string | null
+          reference: string
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          payment_type: string
+          paystack_reference?: string | null
+          reference: string
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          payment_type?: string
+          paystack_reference?: string | null
+          reference?: string
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string
+          id: string
+          price: number
+          rating: number | null
+          seller_id: string
+          title: string
+          total_ratings: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          description: string
+          id?: string
+          price: number
+          rating?: number | null
+          seller_id: string
+          title: string
+          total_ratings?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          price?: number
+          rating?: number | null
+          seller_id?: string
+          title?: string
+          total_ratings?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -43,6 +421,39 @@ export type Database = {
           email?: string | null
           id?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_credits: {
+        Row: {
+          created_at: string | null
+          credits_remaining: number | null
+          id: string
+          is_premium: boolean | null
+          last_credit_reset: string | null
+          premium_expires_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          credits_remaining?: number | null
+          id?: string
+          is_premium?: boolean | null
+          last_credit_reset?: string | null
+          premium_expires_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          credits_remaining?: number | null
+          id?: string
+          is_premium?: boolean | null
+          last_credit_reset?: string | null
+          premium_expires_at?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -88,7 +499,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      reset_daily_credits: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      use_credit: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
