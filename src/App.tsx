@@ -18,8 +18,8 @@ import Cases from "./pages/Cases";
 import Upgrade from "./pages/Upgrade";
 import History from "./pages/History";
 import NotFound from "./pages/NotFound";
-import Auth from "./pages/Auth";
 import { UserProfile } from "./components/UserProfile";
+import LawyersDirectory from "./pages/LawyersDirectory";
 
 const queryClient = new QueryClient();
 
@@ -32,33 +32,27 @@ const App = () => (
         <AuthProvider>
           <SidebarProvider>
             <div className="flex min-h-screen w-full">
-              <Routes>
-                <Route path="/auth" element={<Auth />} />
-                <Route path="*" element={
-                  <div className="flex min-h-screen w-full">
-                    <JuristSidebar />
-                    <div className="flex-1 flex flex-col">
-                      <TopHeader />
-                      <main className="flex-1 overflow-hidden">
-                        <Routes>
-                          <Route path="/" element={<Index />} />
-                          <Route path="/search" element={<Search />} />
-                          <Route path="/jtl" element={<JTL />} />
-                          <Route path="/marketplace" element={<Marketplace />} />
-                          <Route path="/jobs" element={<Jobs />} />
-                          <Route path="/judge-notes" element={<JudgeNotes />} />
-                          <Route path="/diary" element={<Diary />} />
-                          <Route path="/cases" element={<Cases />} />
-                          <Route path="/upgrade" element={<Upgrade />} />
-                          <Route path="/history" element={<History />} />
-                          <Route path="/profile" element={<UserProfile />} />
-                          <Route path="*" element={<NotFound />} />
-                        </Routes>
-                      </main>
-                    </div>
-                  </div>
-                } />
-              </Routes>
+              <JuristSidebar />
+              <div className="flex-1 flex flex-col">
+                <TopHeader />
+                <main className="flex-1 overflow-hidden">
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/search" element={<Search />} />
+                    <Route path="/jtl" element={<JTL />} />
+                    <Route path="/marketplace" element={<Marketplace />} />
+                    <Route path="/jobs" element={<Jobs />} />
+                    <Route path="/judge-notes" element={<JudgeNotes />} />
+                    <Route path="/diary" element={<Diary />} />
+                    <Route path="/cases" element={<Cases />} />
+                    <Route path="/lawyers" element={<LawyersDirectory />} />
+                    <Route path="/upgrade" element={<Upgrade />} />
+                    <Route path="/history" element={<History />} />
+                    <Route path="/profile" element={<UserProfile />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </main>
+              </div>
             </div>
           </SidebarProvider>
         </AuthProvider>

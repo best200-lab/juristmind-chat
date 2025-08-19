@@ -1,1 +1,56 @@
 project_id = "asmostaidymrcesixebq"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+port = 54325
+
+[auth]
+enabled = true
+port = 54326
+
+[edge_functions]
+enabled = true
+port = 54327
+
+[analytics]
+enabled = false
+port = 54328
+
+[functions.manage-cases]
+verify_jwt = true
+
+[functions.manage-diary]  
+verify_jwt = true
+
+[functions.manage-jobs]
+verify_jwt = true
+
+[functions.manage-marketplace]
+verify_jwt = true
+
+[functions.paystack-payment]
+verify_jwt = true
+
+[functions.search-lawyers]
+verify_jwt = false
+
+[functions.check-credits]
+verify_jwt = true

@@ -24,6 +24,7 @@ const navigationItems = [
   { title: "Judge Notes", url: "/judge-notes", icon: FileText },
   { title: "Diary", url: "/diary", icon: BookOpen },
   { title: "Cases", url: "/cases", icon: FolderOpen },
+  { title: "Connect with Lawyers", url: "/lawyers", icon: User },
   { title: "Upgrade", url: "/upgrade", icon: Crown },
   { title: "History", url: "/history", icon: History },
 ];
