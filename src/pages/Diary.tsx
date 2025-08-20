@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Calendar, Clock, Plus, Edit, Trash2, Search, Crown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,49 +28,6 @@ const entryTypes = ["Meeting", "Court", "Task", "Research", "Deadline", "Other"]
 const priorityOptions = ["High", "Medium", "Low"];
 const statusOptions = ["Upcoming", "Completed", "In Progress", "Cancelled"];
 
-const diaryEntries = [
-  {
-    id: 1,
-    title: "Client Meeting - Smith vs Johnson",
-    date: "2024-01-15",
-    time: "10:00 AM",
-    type: "Meeting",
-    description: "Initial consultation for contract dispute case",
-    priority: "High",
-    status: "Upcoming"
-  },
-  {
-    id: 2,
-    title: "Court Hearing - Criminal Case 001/2024",
-    date: "2024-01-16",
-    time: "2:00 PM",
-    type: "Court",
-    description: "Bail application hearing at Federal High Court",
-    priority: "High",
-    status: "Upcoming"
-  },
-  {
-    id: 3,
-    title: "Document Review - Corporate Merger",
-    date: "2024-01-14",
-    time: "9:00 AM",
-    type: "Task",
-    description: "Review merger documents for TechCorp acquisition",
-    priority: "Medium",
-    status: "Completed"
-  },
-  {
-    id: 4,
-    title: "Legal Research - Property Law",
-    date: "2024-01-13",
-    time: "3:00 PM",
-    type: "Research",
-    description: "Research recent property law amendments",
-    priority: "Low",
-    status: "Completed"
-  }
-];
-
 const getPriorityColor = (priority: string) => {
   switch (priority) {
     case "High": return "text-red-500 bg-red-50 border-red-200";
@@ -84,6 +42,7 @@ const getStatusColor = (status: string) => {
     case "Upcoming": return "text-primary bg-primary/10 border-primary/20";
     case "Completed": return "text-green-600 bg-green-50 border-green-200";
     case "In Progress": return "text-yellow-600 bg-yellow-50 border-yellow-200";
+    case "Cancelled": return "text-red-600 bg-red-50 border-red-200";
     default: return "text-muted-foreground bg-muted border-border";
   }
 };
@@ -118,7 +77,10 @@ export default function Diary() {
         body: { action: 'check' }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error checking premium status:', error);
+        return;
+      }
       setIsPremium(data.is_premium_active || false);
     } catch (error) {
       console.error('Error checking premium status:', error);
@@ -131,18 +93,21 @@ export default function Diary() {
         body: { action: 'list' }
       });
 
-      if (error && error.message?.includes('Premium subscription required')) {
+      if (error && error.requiresUpgrade) {
         setEntries([]);
         return;
       }
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching entries:', error);
+        toast.error('Failed to fetch diary entries');
+        return;
+      }
+      
       setEntries(data || []);
     } catch (error) {
       console.error('Error fetching diary entries:', error);
-      if (!error.message?.includes('Premium subscription required')) {
-        toast.error('Failed to fetch diary entries');
-      }
+      toast.error('Failed to fetch diary entries');
     } finally {
       setLoading(false);
     }
@@ -166,7 +131,11 @@ export default function Diary() {
         body: { action: 'create', entryData: formData }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating diary entry:', error);
+        toast.error('Failed to create diary entry');
+        return;
+      }
       
       setEntries([data, ...entries]);
       setIsDialogOpen(false);
@@ -183,6 +152,28 @@ export default function Diary() {
     } catch (error) {
       console.error('Error creating diary entry:', error);
       toast.error('Failed to create diary entry');
+    }
+  };
+
+  const handleDelete = async (entryId: string) => {
+    if (!confirm('Are you sure you want to delete this entry?')) return;
+
+    try {
+      const { error } = await supabase.functions.invoke('manage-diary', {
+        body: { action: 'delete', entryData: { id: entryId } }
+      });
+
+      if (error) {
+        console.error('Error deleting entry:', error);
+        toast.error('Failed to delete entry');
+        return;
+      }
+
+      setEntries(entries.filter(entry => entry.id !== entryId));
+      toast.success('Entry deleted successfully');
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      toast.error('Failed to delete entry');
     }
   };
 
@@ -218,6 +209,7 @@ export default function Diary() {
       </div>
     );
   }
+
   return (
     <div className="h-full bg-background overflow-y-auto">
       <div className="max-w-6xl mx-auto p-6">
@@ -352,10 +344,12 @@ export default function Diary() {
                           <Calendar className="w-4 h-4" />
                           {new Date(entry.entry_date).toLocaleDateString()}
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          {entry.entry_time}
-                        </div>
+                        {entry.entry_time && (
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            {entry.entry_time}
+                          </div>
+                        )}
                         <span className="px-2 py-1 bg-muted text-muted-foreground text-xs rounded">
                           {entry.entry_type}
                         </span>
@@ -378,7 +372,12 @@ export default function Diary() {
                       <Edit className="w-3 h-3" />
                       Edit
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-1 text-red-600 hover:text-red-700">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-1 text-red-600 hover:text-red-700"
+                      onClick={() => handleDelete(entry.id)}
+                    >
                       <Trash2 className="w-3 h-3" />
                       Delete
                     </Button>
@@ -386,6 +385,27 @@ export default function Diary() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        )}
+
+        {filteredEntries.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">
+              {searchTerm ? 'No entries found' : 'No entries yet'}
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              {searchTerm 
+                ? 'Try adjusting your search terms.'
+                : 'Create your first diary entry to get started.'
+              }
+            </p>
+            {!searchTerm && (
+              <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+                <Plus className="w-4 h-4" />
+                Create First Entry
+              </Button>
+            )}
           </div>
         )}
       </div>
