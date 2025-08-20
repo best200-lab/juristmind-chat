@@ -15,6 +15,8 @@ interface Lawyer {
   phone?: string;
   state: string;
   city?: string;
+  location?: string;
+  description?: string;
   specialization: string[];
   years_experience: number;
   bar_number?: string;
@@ -217,11 +219,17 @@ export default function LawyersDirectory() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {lawyer.description && (
+                  <div className="mb-4">
+                    <p className="text-sm text-muted-foreground">{lawyer.description}</p>
+                  </div>
+                )}
+                
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm">
-                      {lawyer.city ? `${lawyer.city}, ` : ''}{lawyer.state}
+                      {lawyer.location || (lawyer.city ? `${lawyer.city}, ${lawyer.state}` : lawyer.state)}
                     </span>
                   </div>
 

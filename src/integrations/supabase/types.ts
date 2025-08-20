@@ -215,8 +215,10 @@ export type Database = {
           bar_number: string | null
           city: string | null
           created_at: string | null
+          description: string | null
           email: string
           id: string
+          location: string | null
           name: string
           phone: string | null
           rating: number | null
@@ -232,8 +234,10 @@ export type Database = {
           bar_number?: string | null
           city?: string | null
           created_at?: string | null
+          description?: string | null
           email: string
           id?: string
+          location?: string | null
           name: string
           phone?: string | null
           rating?: number | null
@@ -249,8 +253,10 @@ export type Database = {
           bar_number?: string | null
           city?: string | null
           created_at?: string | null
+          description?: string | null
           email?: string
           id?: string
+          location?: string | null
           name?: string
           phone?: string | null
           rating?: number | null

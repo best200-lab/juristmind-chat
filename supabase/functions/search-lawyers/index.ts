@@ -22,7 +22,7 @@ serve(async (req) => {
       }
     );
 
-    const { action, state, specialization, lawyerData } = await req.json();
+    const { action, state, specialization, location, lawyerData } = await req.json();
 
     console.log(`Lawyer search action: ${action}`);
 
@@ -35,6 +35,10 @@ serve(async (req) => {
 
         if (state) {
           query = query.ilike('state', `%${state}%`);
+        }
+
+        if (location) {
+          query = query.or(`city.ilike.%${location}%,location.ilike.%${location}%`);
         }
 
         if (specialization) {
