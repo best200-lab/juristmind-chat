@@ -1,43 +1,140 @@
-import { Briefcase, MapPin, Clock, Plus, Filter } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Briefcase, MapPin, Clock, Plus, Filter, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-const jobListings = [
-  {
-    id: 1,
-    title: "Senior Corporate Lawyer",
-    company: "Lagos Legal Associates",
-    location: "Lagos, Nigeria",
-    type: "Full-time",
-    salary: "₦500,000 - ₦800,000/month",
-    posted: "2 days ago",
-    description: "Looking for an experienced corporate lawyer to join our growing team."
-  },
-  {
-    id: 2,
-    title: "Legal Research Assistant",
-    company: "Abuja Law Chambers",
-    location: "Abuja, Nigeria",
-    type: "Part-time",
-    salary: "₦150,000 - ₦250,000/month",
-    posted: "1 week ago",
-    description: "Support senior lawyers with research and document preparation."
-  },
-  {
-    id: 3,
-    title: "Family Law Attorney",
-    company: "Port Harcourt Legal Services",
-    location: "Port Harcourt, Nigeria",
-    type: "Full-time",
-    salary: "₦400,000 - ₦600,000/month",
-    posted: "3 days ago",
-    description: "Specialize in family law matters including divorce and custody cases."
-  }
-];
+interface Job {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  job_type: string;
+  salary_range?: string;
+  description: string;
+  created_at: string;
+  applications_count: number;
+  posted_by: string;
+}
+
+interface JobForm {
+  title: string;
+  company: string;
+  location: string;
+  job_type: string;
+  salary_range: string;
+  description: string;
+}
 
 export default function Jobs() {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
+  const [jobForm, setJobForm] = useState<JobForm>({
+    title: "",
+    company: "",
+    location: "",
+    job_type: "",
+    salary_range: "",
+    description: ""
+  });
+
+  useEffect(() => {
+    fetchJobs();
+  }, []);
+
+  const fetchJobs = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('manage-jobs', {
+        body: { action: 'get-all' }
+      });
+
+      if (error) throw error;
+      setJobs(data || []);
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+      toast.error('Failed to fetch jobs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitJob = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('manage-jobs', {
+        body: { 
+          action: 'create',
+          jobData: jobForm
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success('Job posted successfully!');
+      setJobForm({
+        title: "",
+        company: "",
+        location: "",
+        job_type: "",
+        salary_range: "",
+        description: ""
+      });
+      fetchJobs();
+    } catch (error: any) {
+      console.error('Error posting job:', error);
+      toast.error(error.message || 'Failed to post job');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleApplyJob = async (jobId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('manage-jobs', {
+        body: { 
+          action: 'apply',
+          job_id: jobId,
+          cover_letter: ""
+        }
+      });
+
+      if (error) throw error;
+      toast.success('Application submitted successfully!');
+      fetchJobs(); // Refresh to update application count
+    } catch (error: any) {
+      console.error('Error applying to job:', error);
+      toast.error(error.message || 'Failed to apply to job');
+    }
+  };
+
+  const filteredJobs = jobs.filter(job => {
+    const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         job.company.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesLocation = locationFilter === "" || 
+                           job.location.toLowerCase().includes(locationFilter.toLowerCase());
+    return matchesSearch && matchesLocation;
+  });
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return "1 day ago";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
+    return `${Math.ceil(diffDays / 30)} months ago`;
+  };
   return (
     <div className="h-full bg-background overflow-y-auto">
       <div className="max-w-6xl mx-auto p-6">
@@ -56,10 +153,18 @@ export default function Jobs() {
             {/* Search and Filter */}
             <div className="flex gap-4">
               <div className="flex-1">
-                <Input placeholder="Search job titles, companies..." />
+                <Input 
+                  placeholder="Search job titles, companies..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
               <div className="flex-1">
-                <Input placeholder="Location" />
+                <Input 
+                  placeholder="Location" 
+                  value={locationFilter}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                />
               </div>
               <Button variant="outline" className="gap-2">
                 <Filter className="w-4 h-4" />
@@ -67,40 +172,60 @@ export default function Jobs() {
               </Button>
             </div>
 
-            {/* Job Listings */}
-            <div className="space-y-4">
-              {jobListings.map((job) => (
-                <Card key={job.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <CardTitle className="flex items-start justify-between">
-                      <div>
-                        <h3 className="text-xl font-semibold">{job.title}</h3>
-                        <p className="text-muted-foreground">{job.company}</p>
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-2 text-muted-foreground">Loading jobs...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredJobs.map((job) => (
+                  <Card key={job.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader>
+                      <CardTitle className="flex items-start justify-between">
+                        <div>
+                          <h3 className="text-xl font-semibold">{job.title}</h3>
+                          <p className="text-muted-foreground">{job.company}</p>
+                        </div>
+                        <Button onClick={() => handleApplyJob(job.id)}>
+                          Apply Now
+                        </Button>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                        <div className="flex items-center gap-1">
+                          <MapPin className="w-4 h-4" />
+                          {job.location}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Briefcase className="w-4 h-4" />
+                          {job.job_type}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          {formatDate(job.created_at)}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Users className="w-4 h-4" />
+                          {job.applications_count} applications
+                        </div>
                       </div>
-                      <Button>Apply Now</Button>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                      <div className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {job.location}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Briefcase className="w-4 h-4" />
-                        {job.type}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        {job.posted}
-                      </div>
-                    </div>
-                    <p className="text-muted-foreground mb-4">{job.description}</p>
-                    <p className="text-lg font-semibold text-primary">{job.salary}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      <p className="text-muted-foreground mb-4">{job.description}</p>
+                      {job.salary_range && (
+                        <p className="text-lg font-semibold text-primary">{job.salary_range}</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+                {filteredJobs.length === 0 && (
+                  <div className="text-center py-8">
+                    <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No jobs found matching your criteria</p>
+                  </div>
+                )}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="post" className="space-y-6">
@@ -108,41 +233,69 @@ export default function Jobs() {
               <CardHeader>
                 <CardTitle>Post a New Job</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Job Title</label>
-                  <Input placeholder="e.g. Senior Corporate Lawyer" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Company</label>
-                  <Input placeholder="Your law firm or company name" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+              <CardContent>
+                <form onSubmit={handleSubmitJob} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Location</label>
-                    <Input placeholder="City, State" />
+                    <label className="block text-sm font-medium mb-2">Job Title</label>
+                    <Input 
+                      placeholder="e.g. Senior Corporate Lawyer" 
+                      value={jobForm.title}
+                      onChange={(e) => setJobForm({...jobForm, title: e.target.value})}
+                      required
+                    />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Job Type</label>
-                    <Input placeholder="Full-time, Part-time, Contract" />
+                    <label className="block text-sm font-medium mb-2">Company</label>
+                    <Input 
+                      placeholder="Your law firm or company name" 
+                      value={jobForm.company}
+                      onChange={(e) => setJobForm({...jobForm, company: e.target.value})}
+                      required
+                    />
                   </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Salary Range</label>
-                  <Input placeholder="₦XXX,XXX - ₦XXX,XXX/month" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Job Description</label>
-                  <textarea 
-                    className="w-full p-3 border border-border rounded-md bg-background"
-                    rows={6}
-                    placeholder="Describe the role, requirements, and responsibilities..."
-                  />
-                </div>
-                <Button className="w-full">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Post Job
-                </Button>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Location</label>
+                      <Input 
+                        placeholder="City, State" 
+                        value={jobForm.location}
+                        onChange={(e) => setJobForm({...jobForm, location: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Job Type</label>
+                      <Input 
+                        placeholder="Full-time, Part-time, Contract" 
+                        value={jobForm.job_type}
+                        onChange={(e) => setJobForm({...jobForm, job_type: e.target.value})}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Salary Range (Optional)</label>
+                    <Input 
+                      placeholder="₦XXX,XXX - ₦XXX,XXX/month" 
+                      value={jobForm.salary_range}
+                      onChange={(e) => setJobForm({...jobForm, salary_range: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Job Description</label>
+                    <Textarea 
+                      rows={6}
+                      placeholder="Describe the role, requirements, and responsibilities..."
+                      value={jobForm.description}
+                      onChange={(e) => setJobForm({...jobForm, description: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    {submitting ? 'Posting...' : 'Post Job'}
+                  </Button>
+                </form>
               </CardContent>
             </Card>
           </TabsContent>

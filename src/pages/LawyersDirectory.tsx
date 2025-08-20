@@ -30,8 +30,8 @@ export default function LawyersDirectory() {
   const [specializations, setSpecializations] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedState, setSelectedState] = useState("");
-  const [selectedSpecialization, setSelectedSpecialization] = useState("");
+  const [selectedState, setSelectedState] = useState("all");
+  const [selectedSpecialization, setSelectedSpecialization] = useState("all");
 
   useEffect(() => {
     fetchLawyers();
@@ -94,11 +94,11 @@ export default function LawyersDirectory() {
       );
     }
 
-    if (selectedState) {
+    if (selectedState && selectedState !== "all") {
       filtered = filtered.filter(lawyer => lawyer.state === selectedState);
     }
 
-    if (selectedSpecialization) {
+    if (selectedSpecialization && selectedSpecialization !== "all") {
       filtered = filtered.filter(lawyer => 
         lawyer.specialization.includes(selectedSpecialization)
       );
@@ -164,7 +164,7 @@ export default function LawyersDirectory() {
               <SelectValue placeholder="Select State" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All States</SelectItem>
+              <SelectItem value="all">All States</SelectItem>
               {states.map(state => (
                 <SelectItem key={state} value={state}>{state}</SelectItem>
               ))}
@@ -176,7 +176,7 @@ export default function LawyersDirectory() {
               <SelectValue placeholder="Specialization" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Specializations</SelectItem>
+              <SelectItem value="all">All Specializations</SelectItem>
               {specializations.map(spec => (
                 <SelectItem key={spec} value={spec}>{spec}</SelectItem>
               ))}
