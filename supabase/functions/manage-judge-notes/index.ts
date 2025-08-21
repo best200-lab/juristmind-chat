@@ -22,25 +22,20 @@ serve(async (req) => {
       }
     );
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
+    const { action, noteData } = await req.json();
 
-    // Remove premium check - diary available to all users
-    const { data, error } = await supabaseClient.functions.invoke('manage-diary', {
-      body: { action, entryData }
-    });
-
-    const { action, entryData } = await req.json();
-
-    console.log(`Diary management action: ${action}`);
+    console.log(`Judge notes management action: ${action}`);
 
     switch (action) {
       case 'create': {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) throw new Error('Unauthorized');
+
         const { data, error } = await supabaseClient
-          .from('diary_entries')
+          .from('judge_notes')
           .insert({
-            ...entryData,
-            user_id: user.id,
+            ...noteData,
+            author_id: user.id,
           })
           .select()
           .single();
@@ -53,9 +48,23 @@ serve(async (req) => {
 
       case 'list': {
         const { data, error } = await supabaseClient
-          .from('diary_entries')
+          .from('judge_notes')
           .select('*')
-          .order('entry_date', { ascending: false });
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return new Response(JSON.stringify(data), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      case 'get-by-id': {
+        const { id } = noteData;
+        const { data, error } = await supabaseClient
+          .from('judge_notes')
+          .select('*')
+          .eq('id', id)
+          .single();
 
         if (error) throw error;
         return new Response(JSON.stringify(data), { 
@@ -64,10 +73,14 @@ serve(async (req) => {
       }
 
       case 'update': {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) throw new Error('Unauthorized');
+
         const { data, error } = await supabaseClient
-          .from('diary_entries')
-          .update(entryData)
-          .eq('id', entryData.id)
+          .from('judge_notes')
+          .update(noteData)
+          .eq('id', noteData.id)
+          .eq('author_id', user.id)
           .select()
           .single();
 
@@ -78,10 +91,14 @@ serve(async (req) => {
       }
 
       case 'delete': {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) throw new Error('Unauthorized');
+
         const { error } = await supabaseClient
-          .from('diary_entries')
+          .from('judge_notes')
           .delete()
-          .eq('id', entryData.id);
+          .eq('id', noteData.id)
+          .eq('author_id', user.id);
 
         if (error) throw error;
         return new Response(JSON.stringify({ success: true }), { 
@@ -93,7 +110,7 @@ serve(async (req) => {
         throw new Error('Invalid action');
     }
   } catch (error) {
-    console.error('Error in manage-diary:', error);
+    console.error('Error in manage-judge-notes:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

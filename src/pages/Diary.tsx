@@ -21,6 +21,7 @@ interface DiaryEntry {
   description: string;
   priority: string;
   status: string;
+  suit_number?: string;
   created_at: string;
 }
 
@@ -61,6 +62,7 @@ export default function Diary() {
     description: "",
     priority: "Medium",
     status: "Upcoming",
+    suit_number: "",
   });
   const { user } = useAuth();
 
@@ -89,9 +91,10 @@ export default function Diary() {
 
   const fetchEntries = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('manage-diary', {
-        body: { action: 'list' }
-      });
+        // Remove premium check - make diary available to all users
+        const { data, error } = await supabase.functions.invoke('manage-diary', {
+          body: { action: 'list' }
+        });
 
       if (error && error.requiresUpgrade) {
         setEntries([]);
@@ -121,10 +124,7 @@ export default function Diary() {
       return;
     }
 
-    if (!isPremium) {
-      toast.error('Premium subscription required for diary features');
-      return;
-    }
+    // Remove premium check - make diary available to all users
 
     try {
       const { data, error } = await supabase.functions.invoke('manage-diary', {
@@ -147,6 +147,7 @@ export default function Diary() {
         description: "",
         priority: "Medium",
         status: "Upcoming",
+        suit_number: "",
       });
       toast.success('Diary entry created successfully');
     } catch (error) {
@@ -183,33 +184,7 @@ export default function Diary() {
     entry.entry_type.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (!isPremium && !loading) {
-    return (
-      <div className="h-full bg-background overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-6">
-          <div className="text-center py-16">
-            <Crown className="w-16 h-16 text-primary mx-auto mb-6" />
-            <h2 className="text-2xl font-bold text-foreground mb-4">
-              Premium Feature
-            </h2>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              The Legal Diary is a premium feature. Upgrade your account to organize your 
-              legal practice with advanced scheduling and task management.
-            </p>
-            <Button 
-              size="lg" 
-              className="gap-2"
-              onClick={() => window.location.href = '/upgrade'}
-            >
-              <Crown className="w-5 h-5" />
-              Upgrade to Premium
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // Remove premium check - make diary available to all users
   return (
     <div className="h-full bg-background overflow-y-auto">
       <div className="max-w-6xl mx-auto p-6">
@@ -244,14 +219,25 @@ export default function Diary() {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
-                    required
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Title</Label>
+                    <Input
+                      id="title"
+                      value={formData.title}
+                      onChange={(e) => setFormData({...formData, title: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="suit_number">Suit Number</Label>
+                    <Input
+                      id="suit_number"
+                      value={formData.suit_number}
+                      onChange={(e) => setFormData({...formData, suit_number: e.target.value})}
+                      placeholder="e.g. SUIT/123/2024"
+                    />
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
@@ -339,7 +325,7 @@ export default function Diary() {
                   <CardTitle className="flex items-start justify-between">
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold mb-2">{entry.title}</h3>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
                           {new Date(entry.entry_date).toLocaleDateString()}
@@ -353,6 +339,11 @@ export default function Diary() {
                         <span className="px-2 py-1 bg-muted text-muted-foreground text-xs rounded">
                           {entry.entry_type}
                         </span>
+                        {entry.suit_number && (
+                          <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded">
+                            {entry.suit_number}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

@@ -52,7 +52,7 @@ export default function Jobs() {
   const fetchJobs = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('manage-jobs', {
-        body: { action: 'get-all' }
+        body: { action: 'list-jobs' }
       });
 
       if (error) throw error;
@@ -72,7 +72,7 @@ export default function Jobs() {
     try {
       const { data, error } = await supabase.functions.invoke('manage-jobs', {
         body: { 
-          action: 'create',
+          action: 'create-job',
           jobData: jobForm
         }
       });
@@ -101,9 +101,11 @@ export default function Jobs() {
     try {
       const { data, error } = await supabase.functions.invoke('manage-jobs', {
         body: { 
-          action: 'apply',
-          job_id: jobId,
-          cover_letter: ""
+          action: 'apply-job',
+          applicationData: {
+            job_id: jobId,
+            cover_letter: ""
+          }
         }
       });
 

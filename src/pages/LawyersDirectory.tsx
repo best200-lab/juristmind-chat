@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AddLawyerDialog } from "@/components/AddLawyerDialog";
 
 interface Lawyer {
   id: string;
@@ -149,12 +150,11 @@ export default function LawyersDirectory() {
           </p>
         </div>
 
-        {/* Search and Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="md:col-span-2 relative">
+        <div className="flex gap-4 mb-8">
+          <div className="flex-1 relative">
             <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search by name or specialization..."
+            <Input 
+              placeholder="Search lawyers..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -162,7 +162,7 @@ export default function LawyersDirectory() {
           </div>
           
           <Select value={selectedState} onValueChange={setSelectedState}>
-            <SelectTrigger>
+            <SelectTrigger className="w-48">
               <SelectValue placeholder="Select State" />
             </SelectTrigger>
             <SelectContent>
@@ -173,17 +173,7 @@ export default function LawyersDirectory() {
             </SelectContent>
           </Select>
 
-          <Select value={selectedSpecialization} onValueChange={setSelectedSpecialization}>
-            <SelectTrigger>
-              <SelectValue placeholder="Specialization" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Specializations</SelectItem>
-              {specializations.map(spec => (
-                <SelectItem key={spec} value={spec}>{spec}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <AddLawyerDialog onLawyerAdded={fetchLawyers} />
         </div>
 
         {/* Results Count */}

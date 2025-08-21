@@ -101,6 +101,7 @@ export type Database = {
           id: string
           priority: string | null
           status: string | null
+          suit_number: string | null
           title: string
           updated_at: string | null
           user_id: string
@@ -114,6 +115,7 @@ export type Database = {
           id?: string
           priority?: string | null
           status?: string | null
+          suit_number?: string | null
           title: string
           updated_at?: string | null
           user_id: string
@@ -127,6 +129,7 @@ export type Database = {
           id?: string
           priority?: string | null
           status?: string | null
+          suit_number?: string | null
           title?: string
           updated_at?: string | null
           user_id?: string
@@ -207,6 +210,45 @@ export type Database = {
           salary_range?: string | null
           title?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      judge_notes: {
+        Row: {
+          author_id: string | null
+          category: string
+          content: string
+          court: string
+          created_at: string
+          id: string
+          judge_name: string
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          category: string
+          content: string
+          court: string
+          created_at?: string
+          id?: string
+          judge_name: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          category?: string
+          content?: string
+          court?: string
+          created_at?: string
+          id?: string
+          judge_name?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -406,8 +448,10 @@ export type Database = {
           display_name: string | null
           email: string | null
           id: string
+          phone: string | null
           updated_at: string
           user_id: string
+          user_type: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -416,8 +460,10 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id?: string
+          phone?: string | null
           updated_at?: string
           user_id: string
+          user_type?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -426,8 +472,10 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id?: string
+          phone?: string | null
           updated_at?: string
           user_id?: string
+          user_type?: string | null
         }
         Relationships: []
       }
