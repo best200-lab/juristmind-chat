@@ -25,11 +25,6 @@ serve(async (req) => {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) throw new Error('Unauthorized');
 
-    // Remove premium check - diary available to all users
-    const { data, error } = await supabaseClient.functions.invoke('manage-diary', {
-      body: { action, entryData }
-    });
-
     const { action, entryData } = await req.json();
 
     console.log(`Diary management action: ${action}`);

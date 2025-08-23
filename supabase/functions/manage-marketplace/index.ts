@@ -49,7 +49,8 @@ serve(async (req) => {
         });
       }
 
-      case 'list-products': {
+      case 'list-products':
+      case 'get-products': {
         const { data, error } = await supabaseClient
           .from('products')
           .select(`

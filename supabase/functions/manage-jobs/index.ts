@@ -37,10 +37,7 @@ serve(async (req) => {
             ...jobData,
             posted_by: user.id,
           })
-          .select(`
-            *,
-            profiles!jobs_posted_by_fkey(display_name)
-          `)
+          .select('*')
           .single();
 
         if (error) throw error;
@@ -52,10 +49,7 @@ serve(async (req) => {
       case 'list-jobs': {
         const { data, error } = await supabaseClient
           .from('jobs')
-          .select(`
-            *,
-            profiles!jobs_posted_by_fkey(display_name)
-          `)
+          .select('*')
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -93,12 +87,9 @@ serve(async (req) => {
         if (error) throw error;
 
         // Update applications count
-        await supabaseClient
-          .from('jobs')
-          .update({ 
-            applications_count: supabaseClient.sql`applications_count + 1`
-          })
-          .eq('id', applicationData.job_id);
+        await supabaseClient.rpc('increment_application_count', {
+          job_id: applicationData.job_id
+        });
 
         return new Response(JSON.stringify(data), { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -125,10 +116,7 @@ serve(async (req) => {
         const { job_id } = jobData;
         const { data, error } = await supabaseClient
           .from('job_applications')
-          .select(`
-            *,
-            profiles!job_applications_applicant_id_fkey(display_name, email)
-          `)
+          .select('*')
           .eq('job_id', job_id)
           .order('created_at', { ascending: false });
 
