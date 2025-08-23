@@ -406,6 +406,7 @@ export type Database = {
           category: string
           created_at: string | null
           description: string
+          file_url: string | null
           id: string
           price: number
           rating: number | null
@@ -418,6 +419,7 @@ export type Database = {
           category: string
           created_at?: string | null
           description: string
+          file_url?: string | null
           id?: string
           price: number
           rating?: number | null
@@ -430,6 +432,7 @@ export type Database = {
           category?: string
           created_at?: string | null
           description?: string
+          file_url?: string | null
           id?: string
           price?: number
           rating?: number | null
@@ -553,6 +556,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      increment_application_count: {
+        Args: { job_id: string }
+        Returns: undefined
+      }
       reset_daily_credits: {
         Args: Record<PropertyKey, never>
         Returns: undefined

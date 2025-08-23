@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ShoppingBag, Filter, Search, Star, Plus } from "lucide-react";
+import { ShoppingBag, Filter, Search, Star, Plus, Upload } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ interface Product {
   total_ratings: number;
   seller_id: string;
   created_at: string;
+  file_url?: string;
 }
 
 interface ProductForm {
@@ -25,6 +26,7 @@ interface ProductForm {
   description: string;
   price: string;
   category: string;
+  file?: File | null;
 }
 
 export default function Marketplace() {
@@ -36,8 +38,10 @@ export default function Marketplace() {
     title: "",
     description: "",
     price: "",
-    category: ""
+    category: "",
+    file: null
   });
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -46,7 +50,7 @@ export default function Marketplace() {
   const fetchProducts = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('manage-marketplace', {
-        body: { action: 'get-products' }
+        body: { action: 'list-products' }
       });
 
       if (error) throw error;
@@ -59,17 +63,68 @@ export default function Marketplace() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file size (limit to 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File size must be less than 10MB');
+        return;
+      }
+      
+      // Check file type
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Only PDF, DOC, DOCX, and TXT files are allowed');
+        return;
+      }
+      
+      setProductForm({...productForm, file});
+    }
+  };
+
+  const uploadFile = async (file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `products/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('product-files')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage
+      .from('product-files')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  };
+
   const handleSubmitProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setUploading(true);
 
     try {
+      let fileUrl = null;
+      
+      // Upload file if provided
+      if (productForm.file) {
+        fileUrl = await uploadFile(productForm.file);
+      }
+
       const { data, error } = await supabase.functions.invoke('manage-marketplace', {
         body: { 
           action: 'create-product',
           productData: {
-            ...productForm,
-            price: parseFloat(productForm.price)
+            title: productForm.title,
+            description: productForm.description,
+            price: parseFloat(productForm.price),
+            category: productForm.category,
+            file_url: fileUrl
           }
         }
       });
@@ -81,14 +136,21 @@ export default function Marketplace() {
         title: "",
         description: "",
         price: "",
-        category: ""
+        category: "",
+        file: null
       });
+      
+      // Reset file input
+      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+      
       fetchProducts();
     } catch (error: any) {
       console.error('Error creating product:', error);
       toast.error(error.message || 'Failed to create product');
     } finally {
       setSubmitting(false);
+      setUploading(false);
     }
   };
 
@@ -97,8 +159,10 @@ export default function Marketplace() {
       const { data, error } = await supabase.functions.invoke('manage-marketplace', {
         body: { 
           action: 'add-to-cart',
-          product_id: productId,
-          quantity: 1
+          cartData: {
+            product_id: productId,
+            quantity: 1
+          }
         }
       });
 
@@ -181,6 +245,21 @@ export default function Marketplace() {
                       <p className="text-sm text-muted-foreground mb-4">
                         {product.total_ratings} ratings
                       </p>
+                      
+                      {product.file_url && (
+                        <div className="mb-4">
+                          <a 
+                            href={product.file_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline text-sm flex items-center gap-1"
+                          >
+                            <Upload className="w-3 h-3" />
+                            Download Template
+                          </a>
+                        </div>
+                      )}
+                      
                       <Button className="w-full" onClick={() => handleAddToCart(product.id)}>
                         Add to Cart
                       </Button>
@@ -242,9 +321,45 @@ export default function Marketplace() {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={submitting}>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Upload File (Optional)</label>
+                    <div className="border-2 border-dashed border-border rounded-lg p-4">
+                      <div className="text-center">
+                        <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Upload templates, documents, or other files
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Supported: PDF, DOC, DOCX, TXT (Max 10MB)
+                        </p>
+                        <input
+                          id="file-upload"
+                          type="file"
+                          accept=".pdf,.doc,.docx,.txt"
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => document.getElementById('file-upload')?.click()}
+                          disabled={uploading}
+                        >
+                          <Upload className="w-4 h-4 mr-2" />
+                          {uploading ? 'Uploading...' : 'Choose File'}
+                        </Button>
+                        {productForm.file && (
+                          <p className="text-sm text-primary mt-2">
+                            Selected: {productForm.file.name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={submitting || uploading}>
                     <Plus className="w-4 h-4 mr-2" />
-                    {submitting ? 'Listing...' : 'List Product'}
+                    {submitting ? 'Listing...' : uploading ? 'Uploading...' : 'List Product'}
                   </Button>
                 </form>
               </CardContent>

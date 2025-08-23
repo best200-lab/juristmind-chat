@@ -31,7 +31,7 @@ export default function Auth() {
     try {
       const { error } = isLogin
         ? await signIn(email, password)
-        : await signUp(email, password, displayName);
+        : await signUp(email, password, displayName, phone, userType);
 
       if (error) {
         toast({
