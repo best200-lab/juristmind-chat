@@ -9,6 +9,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, displayName?: string, phone?: string, userType?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  verifyEmail: (email: string, code: string) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,36 +48,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, displayName?: string, phone?: string, userType?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          display_name: displayName,
-          phone: phone,
-          user_type: userType,
-        },
-      },
-    });
-    return { error };
+    try {
+      // First send verification code
+      const { error: codeError } = await supabase.functions.invoke('send-verification-code', {
+        body: { email }
+      });
+      
+      if (codeError) {
+        return { error: codeError };
+      }
+      
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
+  };
+
+  const verifyEmail = async (email: string, code: string) => {
+    try {
+      // Verify the code first
+      const { error: verifyError } = await supabase.functions.invoke('verify-email-code', {
+        body: { email, code }
+      });
+      
+      if (verifyError) {
+        return { error: verifyError };
+      }
+      
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
+  const value = {
+    user,
+    session,
+    loading,
+    signIn,
+    signUp,
+    signOut,
+    verifyEmail,
+  };
+
   return (
-    <AuthContext.Provider value={{
-      user,
-      session,
-      loading,
-      signIn,
-      signUp,
-      signOut,
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

@@ -8,59 +8,59 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Elegant Black with Brilliance Blue */
-    --background: 220 20% 4%;
-    --foreground: 210 20% 95%;
+    /* Professional White Theme */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
     
-    --card: 215 25% 6%;
-    --card-foreground: 210 15% 92%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 9%;
     
-    --popover: 215 25% 6%;
-    --popover-foreground: 210 15% 92%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 9%;
     
-    /* Brilliance Blue */
-    --primary: 210 100% 60%;
-    --primary-foreground: 220 20% 5%;
-    --primary-hover: 210 95% 65%;
+    /* Subtle gray primary for professional look */
+    --primary: 0 0% 20%;
+    --primary-foreground: 0 0% 98%;
+    --primary-hover: 0 0% 15%;
     
-    --secondary: 215 25% 8%;
-    --secondary-foreground: 210 15% 85%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
     
-    --muted: 215 20% 6%;
-    --muted-foreground: 210 10% 70%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
     
-    --accent: 210 100% 65%;
-    --accent-foreground: 220 20% 5%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 9%;
     
-    --destructive: 0 85% 60%;
-    --destructive-foreground: 0 15% 95%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
     
-    --border: 215 25% 12%;
-    --input: 215 25% 8%;
-    --ring: 210 100% 60%;
+    --border: 0 0% 90%;
+    --input: 0 0% 96%;
+    --ring: 0 0% 20%;
     
     /* Sidebar */
-    --sidebar-background: 220 25% 3%;
-    --sidebar-foreground: 210 15% 88%;
-    --sidebar-primary: 210 100% 60%;
-    --sidebar-primary-foreground: 220 20% 5%;
-    --sidebar-accent: 215 25% 8%;
-    --sidebar-accent-foreground: 210 15% 92%;
-    --sidebar-border: 215 25% 10%;
-    --sidebar-ring: 210 100% 60%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 9%;
+    --sidebar-primary: 0 0% 20%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-border: 0 0% 92%;
+    --sidebar-ring: 0 0% 20%;
 
     --radius: 0.75rem;
 
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(210, 100%, 60%), hsl(220, 95%, 70%));
-    --gradient-surface: linear-gradient(180deg, hsl(220, 20%, 4%), hsl(215, 25%, 6%));
-    --gradient-accent: linear-gradient(135deg, hsl(210, 100%, 65%), hsl(200, 95%, 75%));
+    /* Professional gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(0, 0%, 98%), hsl(0, 0%, 96%));
+    --gradient-surface: linear-gradient(180deg, hsl(0, 0%, 100%), hsl(0, 0%, 98%));
+    --gradient-accent: linear-gradient(135deg, hsl(0, 0%, 96%), hsl(0, 0%, 94%));
 
-    /* Shadows */
-    --shadow-sm: 0 1px 2px 0 hsl(220 25% 2% / 0.3);
-    --shadow-md: 0 4px 6px -1px hsl(220 25% 2% / 0.4), 0 2px 4px -1px hsl(220 25% 2% / 0.2);
-    --shadow-lg: 0 10px 15px -3px hsl(220 25% 2% / 0.5), 0 4px 6px -2px hsl(220 25% 2% / 0.3);
-    --shadow-glow: 0 0 25px hsl(210 100% 60% / 0.4);
+    /* Subtle shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.06);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.1), 0 4px 6px -2px hsl(0 0% 0% / 0.05);
+    --shadow-glow: 0 0 25px hsl(0 0% 0% / 0.1);
 
     /* Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
