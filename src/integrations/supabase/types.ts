@@ -155,6 +155,7 @@ export type Database = {
           entry_time: string | null
           entry_type: string
           id: string
+          next_adjourn_date: string | null
           priority: string | null
           status: string | null
           suit_number: string | null
@@ -169,6 +170,7 @@ export type Database = {
           entry_time?: string | null
           entry_type: string
           id?: string
+          next_adjourn_date?: string | null
           priority?: string | null
           status?: string | null
           suit_number?: string | null
@@ -183,6 +185,7 @@ export type Database = {
           entry_time?: string | null
           entry_type?: string
           id?: string
+          next_adjourn_date?: string | null
           priority?: string | null
           status?: string | null
           suit_number?: string | null
@@ -347,12 +350,14 @@ export type Database = {
           name: string
           phone: string | null
           rating: number | null
+          social_media: string | null
           specialization: string[] | null
           state: string
           total_ratings: number | null
           updated_at: string | null
           user_id: string | null
           verified: boolean | null
+          website: string | null
           years_experience: number | null
         }
         Insert: {
@@ -366,12 +371,14 @@ export type Database = {
           name: string
           phone?: string | null
           rating?: number | null
+          social_media?: string | null
           specialization?: string[] | null
           state: string
           total_ratings?: number | null
           updated_at?: string | null
           user_id?: string | null
           verified?: boolean | null
+          website?: string | null
           years_experience?: number | null
         }
         Update: {
@@ -385,12 +392,14 @@ export type Database = {
           name?: string
           phone?: string | null
           rating?: number | null
+          social_media?: string | null
           specialization?: string[] | null
           state?: string
           total_ratings?: number | null
           updated_at?: string | null
           user_id?: string | null
           verified?: boolean | null
+          website?: string | null
           years_experience?: number | null
         }
         Relationships: []
