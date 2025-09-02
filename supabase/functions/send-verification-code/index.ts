@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "npm:resend@2.0.0";
+
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,16 +51,44 @@ const handler = async (req: Request): Promise<Response> => {
       throw insertError;
     }
 
-    // For now, just return the code in the response
-    // In production, you would send this via email
-    console.log(`Verification code for ${email}: ${code}`);
+    // Send email with verification code
+    const emailResponse = await resend.emails.send({
+      from: "JURIST MIND <onboarding@resend.dev>",
+      to: [email],
+      subject: "Your JURIST MIND Verification Code",
+      html: `
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
+          <h1 style="color: #333; text-align: center;">JURIST MIND</h1>
+          <h2 style="color: #666; text-align: center;">Email Verification</h2>
+          
+          <p>Hello,</p>
+          
+          <p>Thank you for signing up with JURIST MIND. Please use the following verification code to complete your registration:</p>
+          
+          <div style="background-color: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+            <h1 style="color: #333; font-size: 32px; margin: 0; letter-spacing: 8px;">${code}</h1>
+          </div>
+          
+          <p>This verification code will expire in 10 minutes for security purposes.</p>
+          
+          <p>If you didn't request this verification code, please ignore this email.</p>
+          
+          <p>Best regards,<br>The JURIST MIND Team</p>
+          
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+          <p style="color: #999; font-size: 12px; text-align: center;">
+            This is an automated message. Please do not reply to this email.
+          </p>
+        </div>
+      `,
+    });
+
+    console.log("Verification email sent successfully:", emailResponse);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Verification code sent",
-        // Remove this in production - only for development
-        dev_code: code 
+        message: "Verification code sent to your email"
       }),
       {
         status: 200,

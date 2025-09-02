@@ -16,9 +16,10 @@ interface ChatHistoryProps {
   onSelectSession: (sessionId: string) => void;
   onNewChat: () => void;
   currentSessionId?: string;
+  compact?: boolean;
 }
 
-export function ChatHistory({ onSelectSession, onNewChat, currentSessionId }: ChatHistoryProps) {
+export function ChatHistory({ onSelectSession, onNewChat, currentSessionId, compact = false }: ChatHistoryProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
@@ -85,6 +86,59 @@ export function ChatHistory({ onSelectSession, onNewChat, currentSessionId }: Ch
   };
 
   if (!user) return null;
+
+  if (compact) {
+    return (
+      <div className="space-y-1">
+        <Button 
+          onClick={onNewChat}
+          className="w-full bg-foreground text-background hover:bg-foreground/90"
+          size="sm"
+        >
+          <Plus className="w-3 h-3 mr-2" />
+          New Chat
+        </Button>
+        
+        {loading ? (
+          <div className="text-center text-muted-foreground py-4 text-xs">
+            Loading...
+          </div>
+        ) : sessions.length === 0 ? (
+          <div className="text-center text-muted-foreground py-4 text-xs">
+            No chats yet
+          </div>
+        ) : (
+          <div className="space-y-1 max-h-40 overflow-y-auto">
+            {sessions.slice(0, 5).map((session) => (
+              <div
+                key={session.id}
+                className={`group flex items-center p-2 rounded text-xs cursor-pointer ${
+                  currentSessionId === session.id ? 'bg-accent' : 'hover:bg-accent'
+                }`}
+                onClick={() => onSelectSession(session.id)}
+              >
+                <MessageSquare className="w-3 h-3 mr-2 text-muted-foreground" />
+                <div className="flex-1 min-w-0">
+                  <p className="truncate">{session.title}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="opacity-0 group-hover:opacity-100 p-1 h-auto"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteSession(session.id);
+                  }}
+                >
+                  <Trash2 className="w-2 h-2 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="w-64 bg-muted/30 border-r border-border h-full flex flex-col">

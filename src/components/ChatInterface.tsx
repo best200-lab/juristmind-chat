@@ -19,7 +19,6 @@ export function ChatInterface() {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -209,29 +208,11 @@ export function ChatInterface() {
 
   return (
     <div className="flex h-full bg-background">
-      {/* Chat History Sidebar */}
-      {showHistory && user && (
-        <ChatHistory 
-          onSelectSession={loadSession}
-          onNewChat={startNewChat}
-          currentSessionId={currentSessionId}
-        />
-      )}
-      
       {/* Main Chat Area */}
       <div className="flex flex-col flex-1 h-full">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h1 className="text-xl font-semibold">JURIST MIND</h1>
-          {user && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowHistory(!showHistory)}
-            >
-              <History className="w-4 h-4" />
-            </Button>
-          )}
         </div>
         
         {/* Messages Area */}

@@ -116,7 +116,7 @@ serve(async (req) => {
         if (error) throw error;
         return new Response(JSON.stringify({ 
           ...data, 
-          message: 'Lawyer profile submitted for verification'
+          message: 'Our customer support will contact you for verification'
         }), { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });

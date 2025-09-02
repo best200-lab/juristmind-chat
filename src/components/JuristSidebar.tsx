@@ -14,6 +14,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { ChatHistory } from "@/components/ChatHistory";
 
 const navigationItems = [
   { title: "Search", url: "/search", icon: Search },
@@ -34,12 +35,29 @@ export function JuristSidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [showChatHistory, setShowChatHistory] = useState(false);
 
   const isActive = (path: string) => currentPath === path;
   const getNavClasses = (active: boolean) =>
     active
       ? "bg-sidebar-accent text-sidebar-primary-foreground font-medium border-l-2 border-sidebar-primary"
       : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground";
+
+  const handleSelectSession = (sessionId: string) => {
+    setCurrentSessionId(sessionId);
+    // Navigate to chat with session
+    if (currentPath !== '/') {
+      window.location.href = `/?session=${sessionId}`;
+    }
+  };
+
+  const handleNewChat = () => {
+    setCurrentSessionId(null);
+    if (currentPath !== '/') {
+      window.location.href = '/';
+    }
+  };
 
   return (
     <Sidebar className={`${collapsed ? "w-16" : "w-64"} transition-all duration-300`}>
@@ -82,16 +100,45 @@ export function JuristSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* Chat History Section */}
+        {!collapsed && (
+          <SidebarGroup className="px-2">
+            <SidebarGroupLabel className="flex items-center justify-between">
+              <span>Chat History</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowChatHistory(!showChatHistory)}
+                className="h-6 w-6 p-0"
+              >
+                <History className="w-4 h-4" />
+              </Button>
+            </SidebarGroupLabel>
+            {showChatHistory && (
+              <SidebarGroupContent>
+                <ChatHistory 
+                  onSelectSession={handleSelectSession}
+                  onNewChat={handleNewChat}
+                  currentSessionId={currentSessionId}
+                  compact={true}
+                />
+              </SidebarGroupContent>
+            )}
+          </SidebarGroup>
+        )}
+
         {/* User Profile Section */}
         {!collapsed && (
           <div className="mt-auto p-4 border-t border-sidebar-border">
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent/50"
-            >
-              <User className="w-5 h-5" />
-              <span className="text-sm">Profile</span>
-            </Button>
+            <NavLink to="/profile">
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent/50"
+              >
+                <User className="w-5 h-5" />
+                <span className="text-sm">Profile</span>
+              </Button>
+            </NavLink>
           </div>
         )}
       </SidebarContent>
