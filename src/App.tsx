@@ -22,6 +22,7 @@ import JTL from "./pages/JTL";
 import History from "./pages/History";
 import Upgrade from "./pages/Upgrade";
 import NotFound from "./pages/NotFound";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -33,7 +34,11 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* Unauthenticated routes - chat interface without sidebar */}
             <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={<Index />} />
+            
+            {/* Protected routes - full app with sidebar */}
             <Route path="/*" element={
               <ProtectedRoute>
                 <SidebarProvider>
@@ -43,7 +48,6 @@ const App = () => (
                       <TopHeader />
                       <main className="flex-1 overflow-hidden">
                         <Routes>
-                          <Route path="/" element={<Index />} />
                           <Route path="/search" element={<Search />} />
                           <Route path="/cases" element={<Cases />} />
                           <Route path="/diary" element={<Diary />} />
@@ -54,6 +58,7 @@ const App = () => (
                           <Route path="/jtl" element={<JTL />} />
                           <Route path="/history" element={<History />} />
                           <Route path="/upgrade" element={<Upgrade />} />
+                          <Route path="/profile" element={<Profile />} />
                           <Route path="*" element={<NotFound />} />
                         </Routes>
                       </main>

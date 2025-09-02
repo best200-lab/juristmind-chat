@@ -23,6 +23,8 @@ interface LawyerForm {
   specialization: string[];
   years_experience: number;
   bar_number: string;
+  social_media: string;
+  website: string;
 }
 
 export function AddLawyerDialog({ onLawyerAdded }: AddLawyerDialogProps) {
@@ -38,7 +40,9 @@ export function AddLawyerDialog({ onLawyerAdded }: AddLawyerDialogProps) {
     description: "",
     specialization: [],
     years_experience: 0,
-    bar_number: ""
+    bar_number: "",
+    social_media: "",
+    website: ""
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,7 +67,7 @@ export function AddLawyerDialog({ onLawyerAdded }: AddLawyerDialogProps) {
 
       if (error) throw error;
 
-      toast.success(data.message || 'Lawyer profile submitted for verification');
+      toast.success('Our customer support will contact you for verification');
       setOpen(false);
       setForm({
         name: "",
@@ -75,7 +79,9 @@ export function AddLawyerDialog({ onLawyerAdded }: AddLawyerDialogProps) {
         description: "",
         specialization: [],
         years_experience: 0,
-        bar_number: ""
+        bar_number: "",
+        social_media: "",
+        website: ""
       });
       onLawyerAdded();
     } catch (error: any) {
@@ -194,6 +200,27 @@ export function AddLawyerDialog({ onLawyerAdded }: AddLawyerDialogProps) {
               placeholder="e.g. Corporate Law, Criminal Law, Family Law"
               required
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="social_media">Social Media Handle</Label>
+              <Input
+                id="social_media"
+                value={form.social_media}
+                onChange={(e) => setForm({ ...form, social_media: e.target.value })}
+                placeholder="@username or profile link"
+              />
+            </div>
+            <div>
+              <Label htmlFor="website">Website</Label>
+              <Input
+                id="website"
+                value={form.website}
+                onChange={(e) => setForm({ ...form, website: e.target.value })}
+                placeholder="https://yourwebsite.com"
+              />
+            </div>
           </div>
 
           <div>

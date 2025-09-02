@@ -189,7 +189,7 @@ export default function Jobs() {
                           <h3 className="text-xl font-semibold">{job.title}</h3>
                           <p className="text-muted-foreground">{job.company}</p>
                         </div>
-                        <Button onClick={() => handleApplyJob(job.id)}>
+                        <Button onClick={() => window.open(`mailto:?subject=Job Application: ${job.title}&body=Dear Hiring Manager,%0A%0AI am interested in applying for the ${job.title} position at ${job.company}.%0A%0APlease find my application details below:%0A%0A[Your application details here]%0A%0ABest regards,`)}>
                           Apply Now
                         </Button>
                       </CardTitle>

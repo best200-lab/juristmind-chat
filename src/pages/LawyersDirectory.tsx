@@ -24,6 +24,8 @@ interface Lawyer {
   rating: number;
   total_ratings: number;
   verified: boolean;
+  social_media?: string;
+  website?: string;
 }
 
 export default function LawyersDirectory() {
@@ -230,10 +232,31 @@ export default function LawyersDirectory() {
                     </span>
                   </div>
 
-                  {lawyer.bar_number && (
+                  {lawyer.social_media && (
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">Bar No: {lawyer.bar_number}</span>
+                      <a 
+                        href={lawyer.social_media.startsWith('http') ? lawyer.social_media : `https://${lawyer.social_media}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline"
+                      >
+                        Social Media
+                      </a>
+                    </div>
+                  )}
+
+                  {lawyer.website && (
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-muted-foreground" />
+                      <a 
+                        href={lawyer.website.startsWith('http') ? lawyer.website : `https://${lawyer.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline"
+                      >
+                        Website
+                      </a>
                     </div>
                   )}
 
@@ -256,7 +279,10 @@ export default function LawyersDirectory() {
                         variant="outline" 
                         size="sm" 
                         className="flex-1"
-                        onClick={() => window.open(`mailto:${lawyer.email}`)}
+                        onClick={() => {
+                          navigator.clipboard.writeText(lawyer.email);
+                          toast.success('Email copied to clipboard');
+                        }}
                       >
                         <Mail className="w-3 h-3 mr-1" />
                         Email
@@ -267,7 +293,10 @@ export default function LawyersDirectory() {
                         variant="outline" 
                         size="sm" 
                         className="flex-1"
-                        onClick={() => window.open(`tel:${lawyer.phone}`)}
+                        onClick={() => {
+                          navigator.clipboard.writeText(lawyer.phone);
+                          toast.success('Phone number copied to clipboard');
+                        }}
                       >
                         <Phone className="w-3 h-3 mr-1" />
                         Call

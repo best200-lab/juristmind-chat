@@ -22,6 +22,7 @@ interface DiaryEntry {
   priority: string;
   status: string;
   suit_number?: string;
+  next_adjourn_date?: string;
   created_at: string;
 }
 
@@ -63,6 +64,7 @@ export default function Diary() {
     priority: "Medium",
     status: "Upcoming",
     suit_number: "",
+    next_adjourn_date: "",
   });
   const { user } = useAuth();
 
@@ -148,6 +150,7 @@ export default function Diary() {
         priority: "Medium",
         status: "Upcoming",
         suit_number: "",
+        next_adjourn_date: "",
       });
       toast.success('Diary entry created successfully');
     } catch (error) {
@@ -219,7 +222,7 @@ export default function Diary() {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="title">Title</Label>
                     <Input
@@ -236,6 +239,15 @@ export default function Diary() {
                       value={formData.suit_number}
                       onChange={(e) => setFormData({...formData, suit_number: e.target.value})}
                       placeholder="e.g. SUIT/123/2024"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="next_adjourn_date">Next Adjourn Date</Label>
+                    <Input
+                      id="next_adjourn_date"
+                      type="date"
+                      value={formData.next_adjourn_date}
+                      onChange={(e) => setFormData({...formData, next_adjourn_date: e.target.value})}
                     />
                   </div>
                 </div>

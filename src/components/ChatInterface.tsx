@@ -221,9 +221,9 @@ export function ChatInterface() {
       {/* Main Chat Area */}
       <div className="flex flex-col flex-1 h-full">
         {/* Header */}
-        {user && (
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <h1 className="text-xl font-semibold">JURIST MIND</h1>
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h1 className="text-xl font-semibold">JURIST MIND</h1>
+          {user && (
             <Button
               variant="ghost"
               size="sm"
@@ -231,8 +231,8 @@ export function ChatInterface() {
             >
               <History className="w-4 h-4" />
             </Button>
-          </div>
-        )}
+          )}
+        </div>
         
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto">
