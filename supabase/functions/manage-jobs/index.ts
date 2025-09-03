@@ -25,7 +25,7 @@ serve(async (req) => {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) throw new Error('Unauthorized');
 
-    const { action, jobData, applicationData } = await req.json();
+    const { action, jobData, applicationData, jobId, job_id } = await req.json();
 
     console.log(`Jobs management action: ${action}`);
 
@@ -113,16 +113,57 @@ serve(async (req) => {
       }
 
       case 'job-applications': {
-        const { job_id } = jobData;
+        // Get applications for a specific job (for job posters)
+        const jobId = job_id || (jobData && jobData.job_id);
+        
+        // First verify the user owns this job
+        const { data: job, error: jobError } = await supabaseClient
+          .from('jobs')
+          .select('posted_by')
+          .eq('id', jobId)
+          .single();
+          
+        if (jobError || job.posted_by !== user.id) {
+          throw new Error('Unauthorized');
+        }
+        
         const { data, error } = await supabaseClient
           .from('job_applications')
-          .select('*')
-          .eq('job_id', job_id)
-          .order('created_at', { ascending: false });
-
+          .select(`
+            *,
+            profiles!job_applications_applicant_id_fkey(display_name, email)
+          `)
+          .eq('job_id', jobId);
+          
         if (error) throw error;
-        return new Response(JSON.stringify(data), { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        
+        return new Response(JSON.stringify(data), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      case 'delete-job': {
+        // Verify the user owns this job
+        const { data: job, error: jobError } = await supabaseClient
+          .from('jobs')
+          .select('posted_by')
+          .eq('id', jobId)
+          .single();
+          
+        if (jobError || job.posted_by !== user.id) {
+          throw new Error('Unauthorized: You can only delete your own jobs');
+        }
+        
+        // Delete the job
+        const { error } = await supabaseClient
+          .from('jobs')
+          .delete()
+          .eq('id', jobId);
+          
+        if (error) throw error;
+        
+        return new Response(JSON.stringify({ message: 'Job deleted successfully' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 

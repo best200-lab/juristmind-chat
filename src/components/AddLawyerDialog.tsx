@@ -50,9 +50,10 @@ export function AddLawyerDialog({ onLawyerAdded }: AddLawyerDialogProps) {
     setLoading(true);
 
     try {
-      const specializationArray = form.specialization.length > 0 
+      // Ensure specialization is properly formatted as array
+      const specializationArray = Array.isArray(form.specialization) && form.specialization.length > 0
         ? form.specialization 
-        : form.specialization[0]?.split(',').map(s => s.trim()).filter(s => s) || [];
+        : [];
 
       const { data, error } = await supabase.functions.invoke('search-lawyers', {
         body: {

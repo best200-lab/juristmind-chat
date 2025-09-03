@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Briefcase, MapPin, Clock, Plus, Filter, Users } from "lucide-react";
+import { Briefcase, MapPin, Clock, Plus, Filter, Users, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 interface Job {
@@ -31,6 +32,7 @@ interface JobForm {
 }
 
 export default function Jobs() {
+  const { user } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -97,24 +99,66 @@ export default function Jobs() {
     }
   };
 
-  const handleApplyJob = async (jobId: string) => {
+  const handleApplyJob = async (job: Job) => {
     try {
+      // First register the application in the backend
       const { data, error } = await supabase.functions.invoke('manage-jobs', {
         body: { 
           action: 'apply-job',
           applicationData: {
-            job_id: jobId,
+            job_id: job.id,
             cover_letter: ""
           }
         }
       });
 
       if (error) throw error;
-      toast.success('Application submitted successfully!');
+      
+      // Then open email client with pre-filled application
+      const emailSubject = `Job Application: ${job.title}`;
+      const emailBody = `Dear Hiring Manager,
+
+I am interested in applying for the ${job.title} position at ${job.company}.
+
+Position Details:
+- Job Title: ${job.title}
+- Company: ${job.company}
+- Location: ${job.location}
+- Job Type: ${job.job_type}
+
+Please find my application details below:
+
+[Your cover letter and qualifications here]
+
+Best regards,
+[Your Name]`;
+      
+      window.open(`mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`);
+      toast.success('Application registered! Email client opened for your cover letter.');
       fetchJobs(); // Refresh to update application count
     } catch (error: any) {
       console.error('Error applying to job:', error);
       toast.error(error.message || 'Failed to apply to job');
+    }
+  };
+
+  const handleDeleteJob = async (jobId: string) => {
+    if (!confirm('Are you sure you want to delete this job posting?')) return;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('manage-jobs', {
+        body: { 
+          action: 'delete-job',
+          jobId: jobId
+        }
+      });
+
+      if (error) throw error;
+      toast.success('Job deleted successfully!');
+      fetchJobs();
+    } catch (error: any) {
+      console.error('Error deleting job:', error);
+      toast.error(error.message || 'Failed to delete job');
     }
   };
 
@@ -189,9 +233,20 @@ export default function Jobs() {
                           <h3 className="text-xl font-semibold">{job.title}</h3>
                           <p className="text-muted-foreground">{job.company}</p>
                         </div>
-                        <Button onClick={() => window.open(`mailto:?subject=Job Application: ${job.title}&body=Dear Hiring Manager,%0A%0AI am interested in applying for the ${job.title} position at ${job.company}.%0A%0APlease find my application details below:%0A%0A[Your application details here]%0A%0ABest regards,`)}>
-                          Apply Now
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button onClick={() => handleApplyJob(job)}>
+                            Apply Now
+                          </Button>
+                          {user?.id === job.posted_by && (
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={() => handleDeleteJob(job.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
                       </CardTitle>
                     </CardHeader>
                     <CardContent>

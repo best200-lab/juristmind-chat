@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { User, Settings, Bell, Shield } from "lucide-react";
+import { useTheme } from "next-themes";
 
 interface Profile {
   display_name: string;
@@ -30,6 +31,7 @@ interface UserSettings {
 
 export default function Profile() {
   const { user, signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [profile, setProfile] = useState<Profile>({
     display_name: "",
     email: "",
@@ -132,11 +134,16 @@ export default function Profile() {
     setSaving(true);
 
     try {
+      // Apply theme change immediately
+      setTheme(settings.theme);
+      
       const { error } = await supabase
         .from('user_settings')
         .upsert({
           user_id: user.id,
           ...settings,
+        }, {
+          onConflict: 'user_id'
         });
 
       if (error) throw error;
@@ -147,6 +154,12 @@ export default function Profile() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Update theme immediately when changed
+  const handleThemeChange = (newTheme: string) => {
+    setSettings({ ...settings, theme: newTheme });
+    setTheme(newTheme);
   };
 
   if (loading) {
@@ -254,7 +267,7 @@ export default function Profile() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="theme">Theme</Label>
-                  <Select value={settings.theme} onValueChange={(value) => setSettings({ ...settings, theme: value })}>
+                  <Select value={settings.theme} onValueChange={handleThemeChange}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
