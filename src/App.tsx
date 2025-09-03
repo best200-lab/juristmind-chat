@@ -34,11 +34,10 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Unauthenticated routes - chat interface without sidebar */}
+            {/* Unauthenticated routes */}
             <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<Index />} />
             
-            {/* Protected routes - full app with sidebar */}
+            {/* All other routes are protected with sidebar */}
             <Route path="/*" element={
               <ProtectedRoute>
                 <SidebarProvider>
@@ -48,6 +47,7 @@ const App = () => (
                       <TopHeader />
                       <main className="flex-1 overflow-hidden">
                         <Routes>
+                          <Route path="/" element={<Index />} />
                           <Route path="/search" element={<Search />} />
                           <Route path="/cases" element={<Cases />} />
                           <Route path="/diary" element={<Diary />} />
