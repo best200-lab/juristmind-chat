@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AddLawyerDialogProps {
   onLawyerAdded: () => void;
@@ -28,6 +29,7 @@ interface LawyerForm {
 }
 
 export function AddLawyerDialog({ onLawyerAdded }: AddLawyerDialogProps) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<LawyerForm>({
@@ -47,6 +49,12 @@ export function AddLawyerDialog({ onLawyerAdded }: AddLawyerDialogProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      toast.error('You must be logged in to register as a lawyer');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -101,9 +109,9 @@ export function AddLawyerDialog({ onLawyerAdded }: AddLawyerDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2">
+        <Button className="gap-2" disabled={!user}>
           <Plus className="w-4 h-4" />
-          Add Lawyer
+          {user ? 'Add Lawyer' : 'Login to Add Lawyer'}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

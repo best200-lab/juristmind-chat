@@ -100,6 +100,11 @@ export default function Jobs() {
   };
 
   const handleApplyJob = async (job: Job) => {
+    if (!user) {
+      toast.error('You must be logged in to apply for jobs');
+      return;
+    }
+    
     try {
       // First register the application in the backend
       const { data, error } = await supabase.functions.invoke('manage-jobs', {
@@ -234,9 +239,15 @@ Best regards,
                           <p className="text-muted-foreground">{job.company}</p>
                         </div>
                         <div className="flex gap-2">
-                          <Button onClick={() => handleApplyJob(job)}>
-                            Apply Now
-                          </Button>
+                          {user ? (
+                            <Button onClick={() => handleApplyJob(job)}>
+                              Apply Now
+                            </Button>
+                          ) : (
+                            <Button disabled>
+                              Login to Apply
+                            </Button>
+                          )}
                           {user?.id === job.posted_by && (
                             <Button 
                               variant="destructive" 
@@ -286,10 +297,25 @@ Best regards,
           </TabsContent>
 
           <TabsContent value="post" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Post a New Job</CardTitle>
-              </CardHeader>
+            {!user ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Login Required</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground mb-4">
+                    You must be logged in to post job listings.
+                  </p>
+                  <Button onClick={() => window.location.href = '/auth'}>
+                    Login to Post Jobs
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Post a New Job</CardTitle>
+                </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmitJob} className="space-y-4">
                   <div>
@@ -355,6 +381,7 @@ Best regards,
                 </form>
               </CardContent>
             </Card>
+          )}
           </TabsContent>
         </Tabs>
       </div>

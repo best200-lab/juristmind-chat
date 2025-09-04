@@ -22,15 +22,17 @@ serve(async (req) => {
       }
     );
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
-
     const { action, jobData, applicationData, jobId, job_id } = await req.json();
+
+    // Get user for actions that require auth
+    const { data: { user } } = await supabaseClient.auth.getUser();
 
     console.log(`Jobs management action: ${action}`);
 
     switch (action) {
       case 'create-job': {
+        if (!user) throw new Error('You must be logged in to post jobs');
+        
         const { data, error } = await supabaseClient
           .from('jobs')
           .insert({
@@ -59,6 +61,8 @@ serve(async (req) => {
       }
 
       case 'apply-job': {
+        if (!user) throw new Error('You must be logged in to apply for jobs');
+        
         // Check if already applied
         const { data: existingApp } = await supabaseClient
           .from('job_applications')
@@ -97,6 +101,8 @@ serve(async (req) => {
       }
 
       case 'my-applications': {
+        if (!user) throw new Error('You must be logged in to view your applications');
+        
         const { data, error } = await supabaseClient
           .from('job_applications')
           .select(`
@@ -113,6 +119,8 @@ serve(async (req) => {
       }
 
       case 'job-applications': {
+        if (!user) throw new Error('You must be logged in to view job applications');
+        
         // Get applications for a specific job (for job posters)
         const jobId = job_id || (jobData && jobData.job_id);
         
@@ -143,6 +151,8 @@ serve(async (req) => {
       }
 
       case 'delete-job': {
+        if (!user) throw new Error('You must be logged in to delete jobs');
+        
         // Verify the user owns this job
         const { data: job, error: jobError } = await supabaseClient
           .from('jobs')
