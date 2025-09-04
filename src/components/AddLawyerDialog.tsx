@@ -68,7 +68,7 @@ export function AddLawyerDialog({ onLawyerAdded }: AddLawyerDialogProps) {
 
       if (error) throw error;
 
-      toast.success('Our customer support will contact you for verification');
+      toast.success('Registration submitted! Our support team will contact you very soon for verification.');
       setOpen(false);
       setForm({
         name: "",
