@@ -11,6 +11,14 @@ interface VerifyCodeRequest {
   code: string;
 }
 
+interface UserData {
+  email: string;
+  password: string;
+  displayName?: string;
+  phone?: string;
+  userType?: string;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -67,10 +75,32 @@ const handler = async (req: Request): Promise<Response> => {
       throw updateError;
     }
 
+    // If user data exists, create the Supabase Auth user
+    if (verificationData.user_data) {
+      const userData: UserData = JSON.parse(verificationData.user_data);
+      
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: userData.email,
+        password: userData.password,
+        user_metadata: {
+          display_name: userData.displayName,
+          phone: userData.phone,
+          user_type: userData.userType,
+        },
+        email_confirm: true, // Skip email confirmation since we already verified
+      });
+
+      if (authError) {
+        throw authError;
+      }
+
+      console.log("User created successfully:", authData.user?.id);
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Email verified successfully" 
+        message: "Email verified successfully and account created" 
       }),
       {
         status: 200,

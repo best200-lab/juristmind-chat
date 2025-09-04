@@ -101,7 +101,14 @@ serve(async (req) => {
       case 'register': {
         // Check if user is authenticated
         const { data: { user } } = await supabaseClient.auth.getUser();
-        if (!user) throw new Error('Unauthorized');
+        if (!user) {
+          return new Response(JSON.stringify({ error: 'You must be logged in to register as a lawyer' }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        console.log('Registering lawyer for user:', user.id, 'with data:', lawyerData);
 
         const { data, error } = await supabaseClient
           .from('lawyers')
@@ -113,10 +120,17 @@ serve(async (req) => {
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error inserting lawyer:', error);
+          throw error;
+        }
+
+        console.log('Lawyer registered successfully:', data);
+        
         return new Response(JSON.stringify({ 
-          ...data, 
-          message: 'Our customer support will contact you for verification'
+          success: true,
+          data: data,
+          message: 'Registration submitted! Our support team will contact you very soon for verification.'
         }), { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });

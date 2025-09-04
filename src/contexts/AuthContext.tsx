@@ -51,7 +51,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // First send verification code
       const { error: codeError } = await supabase.functions.invoke('send-verification-code', {
-        body: { email }
+        body: { 
+          email,
+          userData: { email, password, displayName, phone, userType }
+        }
       });
       
       if (codeError) {
@@ -66,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verifyEmail = async (email: string, code: string) => {
     try {
-      // Verify the code first
+      // Verify the code and create the user account
       const { error: verifyError } = await supabase.functions.invoke('verify-email-code', {
         body: { email, code }
       });

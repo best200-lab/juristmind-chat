@@ -11,6 +11,13 @@ const corsHeaders = {
 
 interface SendCodeRequest {
   email: string;
+  userData?: {
+    email: string;
+    password: string;
+    displayName?: string;
+    phone?: string;
+    userType?: string;
+  };
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -24,7 +31,7 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { email }: SendCodeRequest = await req.json();
+    const { email, userData }: SendCodeRequest = await req.json();
 
     // Generate 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -38,13 +45,14 @@ const handler = async (req: Request): Promise<Response> => {
       .delete()
       .eq('email', email);
 
-    // Insert new verification code
+    // Insert new verification code with user data
     const { error: insertError } = await supabase
       .from('email_verification_codes')
       .insert({
         email,
         code,
         expires_at: expiresAt,
+        user_data: userData ? JSON.stringify(userData) : null,
       });
 
     if (insertError) {
