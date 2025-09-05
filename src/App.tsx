@@ -22,6 +22,7 @@ import JTL from "./pages/JTL";
 import History from "./pages/History";
 import Upgrade from "./pages/Upgrade";
 import NotFound from "./pages/NotFound";
+import Terms from "./pages/Terms";
 import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
           <Routes>
             {/* Unauthenticated routes */}
             <Route path="/auth" element={<Auth />} />
+            <Route path="/terms" element={<Terms />} />
             
             {/* All other routes are protected with sidebar */}
             <Route path="/*" element={

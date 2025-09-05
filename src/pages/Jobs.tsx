@@ -117,13 +117,29 @@ export default function Jobs() {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('already applied')) {
+          toast.error('You have already applied to this job');
+          return;
+        }
+        throw error;
+      }
+      
+      // Get poster profile for email
+      const { data: posterData, error: posterError } = await supabase
+        .from('profiles')
+        .select('email, display_name')
+        .eq('user_id', job.posted_by)
+        .single();
+      
+      const posterEmail = posterData?.email || '';
+      const posterName = posterData?.display_name || 'Hiring Manager';
       
       // Then open email client with pre-filled application
-      const emailSubject = `Job Application: ${job.title}`;
-      const emailBody = `Dear Hiring Manager,
+      const emailSubject = `Application for ${job.title}`;
+      const emailBody = `Dear ${posterName},
 
-I am interested in applying for the ${job.title} position at ${job.company}.
+I am applying for ${job.title}. Attached is my resume.
 
 Position Details:
 - Job Title: ${job.title}
@@ -131,15 +147,17 @@ Position Details:
 - Location: ${job.location}
 - Job Type: ${job.job_type}
 
-Please find my application details below:
-
-[Your cover letter and qualifications here]
-
 Best regards,
 [Your Name]`;
       
-      window.open(`mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`);
-      toast.success('Application registered! Email client opened for your cover letter.');
+      if (posterEmail) {
+        window.open(`mailto:${posterEmail}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`);
+        toast.success('Email client opened successfully.');
+      } else {
+        window.open(`mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`);
+        toast.success('Email client opened. Please add the poster\'s email manually.');
+      }
+      
       fetchJobs(); // Refresh to update application count
     } catch (error: any) {
       console.error('Error applying to job:', error);

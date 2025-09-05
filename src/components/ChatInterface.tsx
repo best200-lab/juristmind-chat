@@ -1,17 +1,20 @@
 import { useState, useEffect } from "react";
-import { Send, Mic, Paperclip, History } from "lucide-react";
+import { Send, Mic, Paperclip, Copy, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ChatHistory } from "@/components/ChatHistory";
+import { NavLink } from "react-router-dom";
+import { SourceDisplay } from "@/components/SourceDisplay";
 
 interface Message {
   id: string;
   content: string;
   sender: "user" | "ai";
   timestamp: Date;
+  sources?: string[];
 }
 
 export function ChatInterface() {
@@ -21,6 +24,15 @@ export function ChatInterface() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // Check for session ID in URL params on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session');
+    if (sessionId && user) {
+      loadSession(sessionId);
+    }
+  }, [user]);
 
   const createNewSession = async () => {
     if (!user) return null;
@@ -134,6 +146,7 @@ export function ChatInterface() {
         content: data.answer || "I'm JURIST MIND, your legal AI assistant. How can I help you with legal questions today?",
         sender: "ai",
         timestamp: new Date(),
+        sources: data.sources || [],
       };
       
       setMessages(prev => [...prev, aiResponse]);
@@ -180,6 +193,7 @@ export function ChatInterface() {
         content: msg.content,
         sender: msg.sender as 'user' | 'ai',
         timestamp: new Date(msg.created_at),
+        sources: [], // Sources not saved in DB for now
       }));
       
       setMessages(loadedMessages);
@@ -251,6 +265,9 @@ export function ChatInterface() {
                       <p className="text-xs opacity-70 mt-2">
                         {message.timestamp.toLocaleTimeString()}
                       </p>
+                      {message.sender === "ai" && message.sources && (
+                        <SourceDisplay sources={message.sources} />
+                      )}
                     </div>
                   </div>
                 ))}
@@ -296,6 +313,16 @@ export function ChatInterface() {
                   </Button>
                 </div>
               </div>
+            </div>
+            
+            {/* Terms and Conditions */}
+            <div className="text-center mt-4">
+              <p className="text-xs text-muted-foreground">
+                By using Jurist Mind, you consent to the{' '}
+                <NavLink to="/terms" className="text-primary hover:underline">
+                  terms and conditions
+                </NavLink>
+              </p>
             </div>
           </div>
         </div>

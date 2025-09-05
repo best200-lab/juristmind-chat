@@ -146,6 +146,12 @@ Tags: ${note.tags.join(', ')}
                 <div className="whitespace-pre-wrap text-foreground leading-relaxed">
                   {note.content}
                 </div>
+                
+                <div className="mt-6 pt-4 border-t text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Gotten from Jurist Mind AI
+                  </p>
+                </div>
               </div>
             </div>
 

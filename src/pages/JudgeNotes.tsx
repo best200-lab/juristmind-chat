@@ -93,8 +93,8 @@ export default function JudgeNotes() {
     <div className="h-full bg-background overflow-y-auto">
       <div className="max-w-6xl mx-auto p-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Judges to Lawyers Notes</h1>
-          <p className="text-muted-foreground">Access insights and guidance from judicial officers</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Latest Cases Report</h1>
+          <p className="text-muted-foreground">Access instant cases from lawyers directly from the court room</p>
         </div>
 
         {/* Search and Add */}
@@ -161,7 +161,7 @@ export default function JudgeNotes() {
                     size="sm" 
                     onClick={() => handleReadFullNote(note.id)}
                   >
-                    Read Full Note
+                    Download Notes
                   </Button>
                 </div>
               </CardContent>

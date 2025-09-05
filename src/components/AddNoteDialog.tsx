@@ -19,6 +19,7 @@ interface NoteForm {
   category: string;
   content: string;
   tags: string[];
+  case_suit_number: string;
 }
 
 export function AddNoteDialog({ onNoteAdded }: AddNoteDialogProps) {
@@ -30,7 +31,8 @@ export function AddNoteDialog({ onNoteAdded }: AddNoteDialogProps) {
     court: "",
     category: "",
     content: "",
-    tags: []
+    tags: [],
+    case_suit_number: ""
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -62,7 +64,8 @@ export function AddNoteDialog({ onNoteAdded }: AddNoteDialogProps) {
         court: "",
         category: "",
         content: "",
-        tags: []
+        tags: [],
+        case_suit_number: ""
       });
       onNoteAdded();
     } catch (error: any) {
@@ -88,7 +91,7 @@ export function AddNoteDialog({ onNoteAdded }: AddNoteDialogProps) {
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Judge Note</DialogTitle>
+          <DialogTitle>Add New Case Report</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -99,6 +102,16 @@ export function AddNoteDialog({ onNoteAdded }: AddNoteDialogProps) {
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="Brief title for the note"
               required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="case_suit_number">Case Suit Number</Label>
+            <Input
+              id="case_suit_number"
+              value={form.case_suit_number}
+              onChange={(e) => setForm({ ...form, case_suit_number: e.target.value })}
+              placeholder="Enter case suit number (e.g., FCT/HC/CV/123/2024)"
             />
           </div>
 
