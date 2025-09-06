@@ -305,6 +305,7 @@ export type Database = {
       judge_notes: {
         Row: {
           author_id: string | null
+          case_suit_number: string | null
           category: string
           content: string
           court: string
@@ -317,6 +318,7 @@ export type Database = {
         }
         Insert: {
           author_id?: string | null
+          case_suit_number?: string | null
           category: string
           content: string
           court: string
@@ -329,6 +331,7 @@ export type Database = {
         }
         Update: {
           author_id?: string | null
+          case_suit_number?: string | null
           category?: string
           content?: string
           court?: string

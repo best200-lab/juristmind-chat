@@ -64,18 +64,19 @@ serve(async (req) => {
         if (!user) throw new Error('You must be logged in to apply for jobs');
         
         // Check if already applied
-        const { data: existingApp } = await supabaseClient
+        const { data: existingApp, error: checkError } = await supabaseClient
           .from('job_applications')
           .select('id')
           .eq('job_id', applicationData.job_id)
           .eq('applicant_id', user.id)
-          .single();
+          .maybeSingle();
+
+        if (checkError) {
+          console.error('Error checking existing application:', checkError);
+        }
 
         if (existingApp) {
-          return new Response(JSON.stringify({ error: 'You have already applied to this job' }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
+          throw new Error('You have already applied to this job');
         }
 
         // Create application and increment count
