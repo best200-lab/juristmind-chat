@@ -22,7 +22,28 @@ serve(async (req) => {
       }
     );
 
-    const { action, jobData, applicationData, jobId, job_id } = await req.json();
+    const body = await req.json();
+    
+    // Handle new apply tracking payload (no action field)
+    if (body.job_id && body.poster_email && !body.action) {
+      // Track application click
+      const { error } = await supabaseClient
+        .from('job_applications')
+        .insert({
+          job_id: body.job_id,
+          applicant_id: body.applicant_id,
+        });
+
+      if (error && !error.message?.includes('duplicate')) {
+        console.error('Error tracking application:', error);
+      }
+
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const { action, jobData, applicationData, jobId, job_id } = body;
 
     // Get user for actions that require auth
     const { data: { user } } = await supabaseClient.auth.getUser();

@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { showToast } from "@/lib/toast";
 
 interface Job {
   id: string;
@@ -104,29 +105,10 @@ export default function Jobs() {
       toast.error('You must be logged in to apply for jobs');
       return;
     }
-    
-    try {
-      // First register the application in the backend
-      const { data, error } = await supabase.functions.invoke('manage-jobs', {
-        body: { 
-          action: 'apply-job',
-          applicationData: {
-            job_id: job.id,
-            cover_letter: ""
-          }
-        }
-      });
 
-      if (error) {
-        if (error.message?.includes('already applied')) {
-          toast.error('You have already applied to this job');
-          return;
-        }
-        throw error;
-      }
-      
+    try {
       // Get poster profile for email
-      const { data: posterData, error: posterError } = await supabase
+      const { data: posterData } = await supabase
         .from('profiles')
         .select('email, display_name')
         .eq('user_id', job.posted_by)
@@ -134,34 +116,45 @@ export default function Jobs() {
       
       const posterEmail = posterData?.email || '';
       const posterName = posterData?.display_name || 'Hiring Manager';
-      
-      // Then open email client with pre-filled application
-      const emailSubject = `Application for ${job.title}`;
-      const emailBody = `Dear ${posterName},
 
-I am applying for ${job.title}. Attached is my resume.
+      // Optional: Track the application in backend
+      try {
+        await fetch('/functions/v1/manage-jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            job_id: job.id,
+            poster_email: posterEmail,
+            poster_name: posterName,
+            job_title: job.title,
+            applicant_id: user.id,
+          }),
+        });
+      } catch (trackError) {
+        console.log('Application tracking failed (non-critical):', trackError);
+      }
 
-Position Details:
-- Job Title: ${job.title}
-- Company: ${job.company}
-- Location: ${job.location}
-- Job Type: ${job.job_type}
+      // Build mailto URL
+      const subject = encodeURIComponent(`Job Application: ${job.title}`);
+      const body = encodeURIComponent(
+        `Dear ${posterName},
+
+I am applying for ${job.title}.
+
+Attached is my resume.
 
 Best regards,
-[Your Name]`;
+[Your Name]`
+      );
+      const mailto = `mailto:${posterEmail}?subject=${subject}&body=${body}`;
+
+      // Open email client
+      window.location.href = mailto;
+      showToast('Email client opened successfully.');
       
-      if (posterEmail) {
-        window.open(`mailto:${posterEmail}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`);
-        toast.success('Email client opened successfully.');
-      } else {
-        window.open(`mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`);
-        toast.success('Email client opened. Please add the poster\'s email manually.');
-      }
-      
-      fetchJobs(); // Refresh to update application count
     } catch (error: any) {
       console.error('Error applying to job:', error);
-      toast.error(error.message || 'Failed to apply to job');
+      showToast('Could not open email client. Please try again.', 5000);
     }
   };
 
