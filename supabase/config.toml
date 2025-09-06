@@ -54,3 +54,9 @@ verify_jwt = false
 
 [functions.check-credits]
 verify_jwt = true
+
+[functions.create-notification]
+verify_jwt = true
+
+[functions.delete-notification]
+verify_jwt = true

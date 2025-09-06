@@ -1,4 +1,4 @@
-import { User, Settings, Bell, LogOut } from "lucide-react";
+import { User, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -11,6 +11,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { NotificationCenter } from "@/components/NotificationCenter";
 
 export function TopHeader() {
   const { user, signOut } = useAuth();
@@ -33,9 +34,7 @@ export function TopHeader() {
       <div className="flex items-center gap-3">
         {user ? (
           <>
-            <Button variant="ghost" size="sm" className="p-2">
-              <Bell className="w-4 h-4" />
-            </Button>
+            <NotificationCenter />
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

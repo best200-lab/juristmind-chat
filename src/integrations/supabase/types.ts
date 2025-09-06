@@ -410,6 +410,30 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          body: string
+          created_at: string | null
+          expires_at: string | null
+          id: number
+          title: string
+        }
+        Insert: {
+          body: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: never
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: never
+          title?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           buyer_id: string
@@ -459,6 +483,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payment_methods: {
+        Row: {
+          card_brand: string | null
+          created_at: string | null
+          exp_month: number | null
+          exp_year: number | null
+          id: number
+          last4: string | null
+          stripe_payment_method_id: string
+          user_id: string
+        }
+        Insert: {
+          card_brand?: string | null
+          created_at?: string | null
+          exp_month?: number | null
+          exp_year?: number | null
+          id?: never
+          last4?: string | null
+          stripe_payment_method_id: string
+          user_id: string
+        }
+        Update: {
+          card_brand?: string | null
+          created_at?: string | null
+          exp_month?: number | null
+          exp_year?: number | null
+          id?: never
+          last4?: string | null
+          stripe_payment_method_id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       payments: {
         Row: {
@@ -654,6 +711,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_admin_uid: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       increment_application_count: {
         Args: { job_id: string }
         Returns: undefined
