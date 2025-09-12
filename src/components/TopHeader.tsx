@@ -27,7 +27,7 @@ export function TopHeader() {
       <div className="flex items-center gap-4">
         <SidebarTrigger className="p-2 hover:bg-muted rounded-lg transition-colors" />
         <div className="text-sm text-muted-foreground">
-          Private
+          Menu
         </div>
       </div>
 
