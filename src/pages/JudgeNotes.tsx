@@ -37,16 +37,16 @@ export default function JudgeNotes() {
 
   const fetchNotes = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('manage-judge-notes', {
-        body: { action: 'list' }
+      const { data, error } = await supabase.functions.invoke("manage-judge-notes", {
+        body: { action: "list" },
       });
 
       if (error) throw error;
       setNotes(data || []);
       setFilteredNotes(data || []);
     } catch (error) {
-      console.error('Error fetching notes:', error);
-      toast.error('Failed to fetch judge notes');
+      console.error("Error fetching notes:", error);
+      toast.error("Failed to fetch judge notes");
     } finally {
       setLoading(false);
     }
@@ -58,12 +58,13 @@ export default function JudgeNotes() {
       return;
     }
 
-    const filtered = notes.filter(note => 
-      note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.judge_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.court.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+    const filtered = notes.filter(
+      (note) =>
+        note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        note.judge_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        note.court.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        note.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        note.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
     );
     setFilteredNotes(filtered);
   };
@@ -94,15 +95,17 @@ export default function JudgeNotes() {
       <div className="max-w-6xl mx-auto p-6">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Latest Cases Report</h1>
-          <p className="text-muted-foreground">Access instant cases from lawyers directly from the court room</p>
+          <p className="text-muted-foreground">
+            Access instant cases from lawyers directly from the court room
+          </p>
         </div>
 
         {/* Search and Add */}
         <div className="flex gap-4 mb-8">
           <div className="flex-1 relative">
             <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input 
-              placeholder="Search judge notes..." 
+            <Input
+              placeholder="Search judge notes..."
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -137,11 +140,13 @@ export default function JudgeNotes() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground mb-4">{truncateContent(note.content)}</p>
-                <div className="flex items-center gap-2 mb-4">
-                  <Tag className="w-4 h-4 text-muted-foreground" />
-                  <div className="flex gap-2">
+
+                {/* Tags section fixed */}
+                <div className="flex items-start gap-2 mb-4">
+                  <Tag className="w-4 h-4 text-muted-foreground mt-1" />
+                  <div className="flex flex-wrap gap-2">
                     {note.tags.slice(0, 3).map((tag, index) => (
-                      <span 
+                      <span
                         key={index}
                         className="px-2 py-1 bg-muted text-muted-foreground text-xs rounded"
                       >
@@ -155,10 +160,11 @@ export default function JudgeNotes() {
                     )}
                   </div>
                 </div>
+
                 <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleReadFullNote(note.id)}
                   >
                     Download Notes
@@ -167,24 +173,23 @@ export default function JudgeNotes() {
               </CardContent>
             </Card>
           ))}
-          
+
           {filteredNotes.length === 0 && !loading && (
             <div className="text-center py-12">
               <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium text-foreground mb-2">
-                {searchTerm ? 'No notes found' : 'No judge notes yet'}
+                {searchTerm ? "No notes found" : "No judge notes yet"}
               </h3>
               <p className="text-muted-foreground">
-                {searchTerm 
-                  ? 'Try adjusting your search criteria' 
-                  : 'Add the first judge note to get started'
-                }
+                {searchTerm
+                  ? "Try adjusting your search criteria"
+                  : "Add the first judge note to get started"}
               </p>
             </div>
           )}
         </div>
 
-        <ReadFullNote 
+        <ReadFullNote
           noteId={selectedNoteId}
           open={readNoteOpen}
           onOpenChange={setReadNoteOpen}
