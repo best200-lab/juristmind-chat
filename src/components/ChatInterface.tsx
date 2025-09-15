@@ -186,7 +186,8 @@ export function ChatInterface() {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <div className="flex-1 overflow-y-auto" role="log" aria-live="polite">
+      {/* Messages area with padding to avoid overlap with fixed input */}
+      <div className="flex-1 overflow-y-auto pb-32" role="log" aria-live="polite">
         <div className="max-w-4xl mx-auto p-6">
           {messages.length === 0 ? (
             <div className="text-center py-20">
@@ -229,36 +230,47 @@ export function ChatInterface() {
         </div>
       </div>
 
-      <div className="flex-shrink-0 p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex gap-3 items-center">
-            <Button size="sm" variant="ghost" className="p-2 h-10 w-10 rounded-full" aria-label="Attach file" disabled>
-              <Paperclip className="w-5 h-5" />
-            </Button>
-            <div className="flex-1 relative">
-              <Input
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="What do you want to know?"
-                className="pr-20 py-3 text-base bg-input border-border focus:ring-primary focus:border-primary rounded-full"
-                aria-label="Chat input"
-              />
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
-                <Button size="sm" variant="ghost" className="p-2 h-8 w-8 rounded-full" aria-label="Voice input" disabled>
-                  <Mic className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!inputValue.trim() || isLoading || !user}
-                  size="sm"
-                  className="p-2 h-8 w-8 rounded-full bg-primary hover:bg-primary-hover"
-                  aria-label="Send message"
-                >
-                  <Send className="w-3 h-3" />
-                </Button>
-  
-              </div>
+      {/* Fixed Chat Input */}
+      <div className="fixed bottom-3 left-0 right-0 px-4">
+        <div className="max-w-4xl mx-auto bg-background rounded-2xl shadow-md p-3 flex gap-3 items-center border border-border">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="p-2 h-10 w-10 rounded-full"
+            aria-label="Attach file"
+            disabled
+          >
+            <Paperclip className="w-5 h-5" />
+          </Button>
+
+          <div className="flex-1 relative">
+            <Input
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="What do you want to know?"
+              className="pr-20 py-3 text-base bg-input border-border focus:ring-primary focus:border-primary rounded-full"
+              aria-label="Chat input"
+            />
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="p-2 h-8 w-8 rounded-full"
+                aria-label="Voice input"
+                disabled
+              >
+                <Mic className="w-4 h-4" />
+              </Button>
+              <Button
+                onClick={handleSendMessage}
+                disabled={!inputValue.trim() || isLoading || !user}
+                size="sm"
+                className="p-2 h-8 w-8 rounded-full bg-primary hover:bg-primary-hover"
+                aria-label="Send message"
+              >
+                <Send className="w-3 h-3" />
+              </Button>
             </div>
           </div>
         </div>
