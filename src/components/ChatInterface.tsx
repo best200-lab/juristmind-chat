@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, memo } from "react";
-import { Send, Mic, Paperclip } from "lucide-react";
+import { Send, Mic, Paperclip, Copy, RefreshCw, ThumbsUp, ThumbsDown, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,8 @@ interface Message {
   content: string;
   sender: "user" | "ai";
   timestamp: Date;
+  liked?: boolean;
+  disliked?: boolean;
 }
 
 const Markdown = memo(({ content }: { content: string }) => (
@@ -26,17 +28,17 @@ const Markdown = memo(({ content }: { content: string }) => (
             {...props}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-primary hover:underline"
+            className="text-blue-400 hover:underline"
           />
         ),
         table: ({ node, ...props }) => (
-          <table className="border border-border rounded-md my-2" {...props} />
+          <table className="border border-gray-700 rounded-md my-2" {...props} />
         ),
         th: ({ node, ...props }) => (
-          <th className="border border-border px-2 py-1 bg-muted" {...props} />
+          <th className="border border-gray-700 px-2 py-1 bg-gray-800" {...props} />
         ),
         td: ({ node, ...props }) => (
-          <td className="border border-border px-2 py-1" {...props} />
+          <td className="border border-gray-700 px-2 py-1" {...props} />
         ),
         ul: ({ node, ...props }) => <ul className="list-disc ml-6" {...props} />,
         ol: ({ node, ...props }) => <ol className="list-decimal ml-6" {...props} />,
@@ -47,11 +49,11 @@ const Markdown = memo(({ content }: { content: string }) => (
         p: ({ node, ...props }) => <p className="mb-2" {...props} />,
         code: ({ node, inline, ...props }) =>
           inline ? (
-            <code className="bg-muted text-foreground px-1 py-0.5 rounded" {...props} />
+            <code className="bg-gray-800 text-gray-200 px-1 py-0.5 rounded" {...props} />
           ) : (
-            <code className="block bg-muted text-foreground p-2 rounded" {...props} />
+            <code className="block bg-gray-800 text-gray-200 p-2 rounded" {...props} />
           ),
-        pre: ({ node, ...props }) => <pre className="bg-muted p-3 rounded-md overflow-x-auto" {...props} />,
+        pre: ({ node, ...props }) => <pre className="bg-gray-800 p-3 rounded-md overflow-x-auto" {...props} />,
       }}
     >
       {content}
@@ -63,6 +65,8 @@ export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -70,6 +74,85 @@ export function ChatInterface() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied!",
+        description: "Message copied to clipboard",
+      });
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
+      toast({
+        title: "Error",
+        description: "Failed to copy to clipboard",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const refreshResponse = async (messageId: string) => {
+    const messageToRefresh = messages.find(m => m.id === messageId);
+    if (!messageToRefresh) return;
+
+    // Find the user message that prompted this AI response
+    const messageIndex = messages.findIndex(m => m.id === messageId);
+    if (messageIndex <= 0) return;
+
+    const userMessage = messages[messageIndex - 1];
+    if (userMessage.sender !== "user") return;
+
+    // Remove the old AI response
+    const updatedMessages = messages.filter(m => m.id !== messageId);
+    setMessages(updatedMessages);
+    
+    // Resend the user message
+    setInputValue(userMessage.content);
+    setTimeout(() => handleSendMessage(), 100);
+  };
+
+  const handleReaction = (messageId: string, reaction: 'like' | 'dislike') => {
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === messageId) {
+        return {
+          ...msg,
+          liked: reaction === 'like',
+          disliked: reaction === 'dislike'
+        };
+      }
+      return msg;
+    }));
+  };
+
+  const startEditing = (messageId: string, content: string) => {
+    setEditingMessageId(messageId);
+    setEditContent(content);
+  };
+
+  const cancelEditing = () => {
+    setEditingMessageId(null);
+    setEditContent("");
+  };
+
+  const saveEditing = () => {
+    if (!editingMessageId) return;
+    
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === editingMessageId) {
+        return { ...msg, content: editContent };
+      }
+      return msg;
+    }));
+    
+    setEditingMessageId(null);
+    setEditContent("");
+    
+    toast({
+      title: "Message updated",
+      description: "Your message has been edited",
+    });
+  };
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
@@ -163,7 +246,7 @@ export function ChatInterface() {
       setIsLoading(false);
       toast({
         title: "Error",
-        description: "Failed to connect with Ai service at this moment. Please try again.",
+        description: "Failed to connect with AI service at this moment. Please try again.",
         variant: "destructive",
       });
       setMessages((prev) => {
@@ -185,18 +268,21 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full bg-gradient-to-br from-gray-900 to-black text-gray-100">
       {/* Messages area with padding to avoid overlap with fixed input */}
       <div className="flex-1 overflow-y-auto pb-32" role="log" aria-live="polite">
         <div className="max-w-4xl mx-auto p-6">
           {messages.length === 0 ? (
             <div className="text-center py-20">
-              <h2 className="text-4xl font-bold text-foreground mb-8">JURIST MIND</h2>
-              <p className="text-lg text-muted-foreground mb-12">
+              <h2 className="text-4xl font-bold text-white mb-8">JURIST MIND</h2>
+              <p className="text-lg text-gray-400 mb-12">
                 {user ? "What do you want to know?" : "Please sign in to start chatting"}
               </p>
               {!user && (
-                <Button onClick={() => (window.location.href = "/auth")} className="mt-4">
+                <Button 
+                  onClick={() => (window.location.href = "/auth")} 
+                  className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+                >
                   Sign In to Continue
                 </Button>
               )}
@@ -209,18 +295,98 @@ export function ChatInterface() {
                   className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-2xl p-4 rounded-xl ${
+                    className={`max-w-2xl p-4 rounded-xl relative group ${
                       message.sender === "user"
-                        ? "bg-primary text-primary-foreground shadow-md"
-                        : "bg-card border border-border shadow-sm"
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-800 bg-opacity-70 border border-gray-700"
                     }`}
                   >
-                    {message.sender === "ai" ? (
+                    {editingMessageId === message.id && message.sender === "user" ? (
+                      <div className="mb-2">
+                        <Input
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          className="bg-gray-700 text-white border-gray-600"
+                        />
+                        <div className="flex justify-end space-x-2 mt-2">
+                          <Button 
+                            size="sm" 
+                            onClick={cancelEditing}
+                            className="bg-gray-600 hover:bg-gray-500"
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            onClick={saveEditing}
+                            className="bg-blue-600 hover:bg-blue-500"
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+                    ) : message.sender === "ai" ? (
                       <Markdown content={message.content} />
                     ) : (
                       <p className="text-sm leading-relaxed">{message.content}</p>
                     )}
+                    
                     <p className="text-xs opacity-70 mt-2">{message.timestamp.toLocaleTimeString()}</p>
+                    
+                    {/* Message actions */}
+                    <div className={`absolute -top-3 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity ${message.sender === "user" ? "bg-blue-600" : "bg-gray-800"} rounded-lg p-1 shadow-lg`}>
+                      {message.sender === "user" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-white hover:bg-blue-500"
+                          onClick={() => startEditing(message.id, message.content)}
+                          aria-label="Edit message"
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-white hover:bg-opacity-50"
+                        onClick={() => copyToClipboard(message.content)}
+                        aria-label="Copy message"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                      {message.sender === "ai" && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-white hover:bg-opacity-50"
+                            onClick={() => refreshResponse(message.id)}
+                            aria-label="Refresh response"
+                          >
+                            <RefreshCw className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-6 w-6 ${message.liked ? "text-green-400" : "text-white"} hover:bg-opacity-50`}
+                            onClick={() => handleReaction(message.id, 'like')}
+                            aria-label="Like response"
+                          >
+                            <ThumbsUp className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-6 w-6 ${message.disliked ? "text-red-400" : "text-white"} hover:bg-opacity-50`}
+                            onClick={() => handleReaction(message.id, 'dislike')}
+                            aria-label="Dislike response"
+                          >
+                            <ThumbsDown className="w-3 h-3" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -232,11 +398,11 @@ export function ChatInterface() {
 
       {/* Fixed Chat Input */}
       <div className="fixed bottom-3 left-0 right-0 px-4">
-        <div className="max-w-4xl mx-auto bg-background rounded-2xl shadow-md p-3 flex gap-3 items-center border border-border">
+        <div className="max-w-4xl mx-auto bg-gray-800 bg-opacity-70 backdrop-blur-md rounded-2xl shadow-md p-3 flex gap-3 items-center border border-gray-700">
           <Button
             size="sm"
             variant="ghost"
-            className="p-2 h-10 w-10 rounded-full"
+            className="p-2 h-10 w-10 rounded-full text-gray-400 hover:text-white hover:bg-gray-700"
             aria-label="Attach file"
             disabled
           >
@@ -249,14 +415,15 @@ export function ChatInterface() {
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="What do you want to know?"
-              className="pr-20 py-3 text-base bg-input border-border focus:ring-primary focus:border-primary rounded-full"
+              className="pr-20 py-3 text-base bg-gray-700 text-white border-gray-600 focus:ring-blue-500 focus:border-blue-500 rounded-full placeholder-gray-400"
               aria-label="Chat input"
+              disabled={!user}
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
               <Button
                 size="sm"
                 variant="ghost"
-                className="p-2 h-8 w-8 rounded-full"
+                className="p-2 h-8 w-8 rounded-full text-gray-400 hover:text-white hover:bg-gray-700"
                 aria-label="Voice input"
                 disabled
               >
@@ -266,7 +433,7 @@ export function ChatInterface() {
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim() || isLoading || !user}
                 size="sm"
-                className="p-2 h-8 w-8 rounded-full bg-primary hover:bg-primary-hover"
+                className="p-2 h-8 w-8 rounded-full bg-blue-600 hover:bg-blue-500 text-white"
                 aria-label="Send message"
               >
                 <Send className="w-3 h-3" />
