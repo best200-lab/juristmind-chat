@@ -103,7 +103,7 @@ export function ChatInterface() {
     setMessages((prev) => [...prev, aiMessage]);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/ask", {
+      const response = await fetch("https://juristmind.onrender.com", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: newMessage.content }),
@@ -163,7 +163,7 @@ export function ChatInterface() {
       setIsLoading(false);
       toast({
         title: "Error",
-        description: "Failed to stream response from AI. Please try again.",
+        description: "Failed to connect with Ai service at this moment. Please try again.",
         variant: "destructive",
       });
       setMessages((prev) => {
