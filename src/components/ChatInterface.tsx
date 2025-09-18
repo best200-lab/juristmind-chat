@@ -51,7 +51,9 @@ const Markdown = memo(({ content }: { content: string }) => (
           ) : (
             <code className="block bg-muted text-foreground p-2 rounded" {...props} />
           ),
-        pre: ({ node, ...props }) => <pre className="bg-muted p-3 rounded-md overflow-x-auto" {...props} />,
+        pre: ({ node, ...props }) => (
+          <pre className="bg-muted p-3 rounded-md overflow-x-auto" {...props} />
+        ),
       }}
     >
       {content}
@@ -103,10 +105,17 @@ export function ChatInterface() {
     setMessages((prev) => [...prev, aiMessage]);
 
     try {
-      const response = await fetch("https://juristmind.onrender.com", {
+      // ✅ Use stored chat_id (if exists)
+      let chatId = localStorage.getItem("chat_id");
+
+      const response = await fetch("https://juristmind.onrender.com/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: newMessage.content }),
+        body: JSON.stringify({
+          question: newMessage.content,
+          chat_id: chatId,
+          user_id: user?.id, // ✅ send Supabase user_id
+        }),
       });
 
       if (!response.body) throw new Error("No response body from server");
@@ -146,6 +155,12 @@ export function ChatInterface() {
               if (data.type === "done") {
                 done = true;
                 setIsLoading(false);
+
+                // ✅ Save chat_id returned by backend
+                if (data.chat_id) {
+                  localStorage.setItem("chat_id", data.chat_id);
+                }
+
                 if (data.chat_url) {
                   console.log(`Chat stored at: ${data.chat_url}`);
                 }
@@ -163,14 +178,16 @@ export function ChatInterface() {
       setIsLoading(false);
       toast({
         title: "Error",
-        description: "Failed to connect with Ai service at this moment. Please try again.",
+        description:
+          "Failed to connect with AI service at this moment. Please try again.",
         variant: "destructive",
       });
       setMessages((prev) => {
         const updated = [...prev];
         const last = updated[updated.length - 1];
         if (last.sender === "ai") {
-          last.content += "**Error:** Failed to stream response. Please try again.";
+          last.content +=
+            "**Error:** Failed to stream response. Please try again.";
         }
         return updated;
       });
@@ -186,17 +203,22 @@ export function ChatInterface() {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Messages area with padding to avoid overlap with fixed input */}
+      {/* Messages area */}
       <div className="flex-1 overflow-y-auto pb-32" role="log" aria-live="polite">
         <div className="max-w-4xl mx-auto p-6">
           {messages.length === 0 ? (
             <div className="text-center py-20">
-              <h2 className="text-4xl font-bold text-foreground mb-8">JURIST MIND</h2>
+              <h2 className="text-4xl font-bold text-foreground mb-8">
+                JURIST MIND
+              </h2>
               <p className="text-lg text-muted-foreground mb-12">
                 {user ? "What do you want to know?" : "Please sign in to start chatting"}
               </p>
               {!user && (
-                <Button onClick={() => (window.location.href = "/auth")} className="mt-4">
+                <Button
+                  onClick={() => (window.location.href = "/auth")}
+                  className="mt-4"
+                >
                   Sign In to Continue
                 </Button>
               )}
@@ -206,7 +228,11 @@ export function ChatInterface() {
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
+                  className={`flex ${
+                    message.sender === "user"
+                      ? "justify-end"
+                      : "justify-start"
+                  }`}
                 >
                   <div
                     className={`max-w-2xl p-4 rounded-xl ${
@@ -218,9 +244,13 @@ export function ChatInterface() {
                     {message.sender === "ai" ? (
                       <Markdown content={message.content} />
                     ) : (
-                      <p className="text-sm leading-relaxed">{message.content}</p>
+                      <p className="text-sm leading-relaxed">
+                        {message.content}
+                      </p>
                     )}
-                    <p className="text-xs opacity-70 mt-2">{message.timestamp.toLocaleTimeString()}</p>
+                    <p className="text-xs opacity-70 mt-2">
+                      {message.timestamp.toLocaleTimeString()}
+                    </p>
                   </div>
                 </div>
               ))}
