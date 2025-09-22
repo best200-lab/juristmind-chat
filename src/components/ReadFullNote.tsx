@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, Tag, Download, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import jsPDF from "jspdf";
 
 interface JudgeNote {
   id: string;
@@ -35,15 +36,15 @@ export function ReadFullNote({ noteId, open, onOpenChange }: ReadFullNoteProps) 
   const fetchNote = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('manage-judge-notes', {
-        body: { action: 'get-by-id', noteData: { id: noteId } }
+      const { data, error } = await supabase.functions.invoke("manage-judge-notes", {
+        body: { action: "get-by-id", noteData: { id: noteId } },
       });
 
       if (error) throw error;
       setNote(data);
     } catch (error) {
-      console.error('Error fetching note:', error);
-      toast.error('Failed to fetch note details');
+      console.error("Error fetching note:", error);
+      toast.error("Failed to fetch note details");
     } finally {
       setLoading(false);
     }
@@ -51,34 +52,39 @@ export function ReadFullNote({ noteId, open, onOpenChange }: ReadFullNoteProps) 
 
   const handleDownloadPDF = () => {
     if (!note) return;
-    
-    // Create a simple text content for PDF simulation
-    const content = `
-JUDGE NOTES
 
-Title: ${note.title}
-Judge: ${note.judge_name}
-Court: ${note.court}
-Category: ${note.category}
-Date: ${new Date(note.created_at).toLocaleDateString()}
+    const doc = new jsPDF();
 
-Content:
-${note.content}
+    // Title
+    doc.setFontSize(16);
+    doc.text("JUDGE NOTES", 10, 10);
 
-Tags: ${note.tags.join(', ')}
-    `;
+    // Metadata
+    doc.setFontSize(12);
+    doc.text(`Title: ${note.title}`, 10, 20);
+    doc.text(`Judge: ${note.judge_name}`, 10, 30);
+    doc.text(`Court: ${note.court}`, 10, 40);
+    doc.text(`Category: ${note.category}`, 10, 50);
+    doc.text(`Date: ${new Date(note.created_at).toLocaleDateString()}`, 10, 60);
 
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `judge-note-${note.title.replace(/[^a-zA-Z0-9]/g, '-')}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    toast.success('Note downloaded successfully');
+    // Content (wrap text automatically)
+    doc.setFontSize(12);
+    doc.text("Content:", 10, 75);
+    const splitContent = doc.splitTextToSize(note.content, 180);
+    doc.text(splitContent, 10, 85);
+
+    // Tags
+    if (note.tags.length > 0) {
+      doc.text(`Tags: ${note.tags.join(", ")}`, 10, 120 + splitContent.length);
+    }
+
+    // Footer
+    doc.setFontSize(10);
+    doc.text("Gotten from Jurist Mind AI", 10, 280);
+
+    // Save PDF
+    doc.save(`judge-note-${note.title.replace(/[^a-zA-Z0-9]/g, "-")}.pdf`);
+    toast.success("PDF downloaded successfully");
   };
 
   return (
@@ -86,9 +92,9 @@ Tags: ${note.tags.join(', ')}
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => onOpenChange(false)}
               className="gap-2"
             >
@@ -107,8 +113,10 @@ Tags: ${note.tags.join(', ')}
         ) : note ? (
           <div className="space-y-6">
             <div>
-              <h1 className="text-2xl font-bold text-foreground mb-4">{note.title}</h1>
-              
+              <h1 className="text-2xl font-bold text-foreground mb-4">
+                {note.title}
+              </h1>
+
               <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
                 <span className="font-medium">{note.judge_name}</span>
                 <span>•</span>
@@ -128,7 +136,7 @@ Tags: ${note.tags.join(', ')}
                   <Tag className="w-4 h-4 text-muted-foreground" />
                   <div className="flex gap-2">
                     {note.tags.map((tag, index) => (
-                      <span 
+                      <span
                         key={index}
                         className="px-2 py-1 bg-muted text-muted-foreground text-xs rounded"
                       >
@@ -146,7 +154,7 @@ Tags: ${note.tags.join(', ')}
                 <div className="whitespace-pre-wrap text-foreground leading-relaxed">
                   {note.content}
                 </div>
-                
+
                 <div className="mt-6 pt-4 border-t text-center">
                   <p className="text-sm text-muted-foreground">
                     Gotten from Jurist Mind AI
@@ -158,7 +166,7 @@ Tags: ${note.tags.join(', ')}
             <div className="flex gap-2 pt-4 border-t">
               <Button onClick={handleDownloadPDF} variant="outline" className="gap-2">
                 <Download className="w-4 h-4" />
-                Download Note
+                Download PDF
               </Button>
             </div>
           </div>
