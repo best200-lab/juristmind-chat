@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, memo } from "react";
 import { Send, Mic, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
@@ -105,7 +104,6 @@ export function ChatInterface() {
     setMessages((prev) => [...prev, aiMessage]);
 
     try {
-      // ✅ Use stored chat_id (if exists)
       let chatId = localStorage.getItem("chat_id");
 
       const response = await fetch("https://juristmind.onrender.com/ask", {
@@ -114,7 +112,7 @@ export function ChatInterface() {
         body: JSON.stringify({
           question: newMessage.content,
           chat_id: chatId,
-          user_id: user?.id, // ✅ send Supabase user_id
+          user_id: user?.id,
         }),
       });
 
@@ -156,7 +154,6 @@ export function ChatInterface() {
                 done = true;
                 setIsLoading(false);
 
-                // ✅ Save chat_id returned by backend
                 if (data.chat_id) {
                   localStorage.setItem("chat_id", data.chat_id);
                 }
@@ -178,23 +175,21 @@ export function ChatInterface() {
       setIsLoading(false);
       toast({
         title: "Error",
-        description:
-          "Failed to connect with AI service at this moment. Please try again.",
+        description: "Failed to connect with AI service. Please try again.",
         variant: "destructive",
       });
       setMessages((prev) => {
         const updated = [...prev];
         const last = updated[updated.length - 1];
         if (last.sender === "ai") {
-          last.content +=
-            "**Error:** Failed to stream response. Please try again.";
+          last.content += "**Error:** Failed to stream response. Please try again.";
         }
         return updated;
       });
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -229,9 +224,7 @@ export function ChatInterface() {
                 <div
                   key={message.id}
                   className={`flex ${
-                    message.sender === "user"
-                      ? "justify-end"
-                      : "justify-start"
+                    message.sender === "user" ? "justify-end" : "justify-start"
                   }`}
                 >
                   <div
@@ -244,9 +237,7 @@ export function ChatInterface() {
                     {message.sender === "ai" ? (
                       <Markdown content={message.content} />
                     ) : (
-                      <p className="text-sm leading-relaxed">
-                        {message.content}
-                      </p>
+                      <p className="text-sm leading-relaxed">{message.content}</p>
                     )}
                     <p className="text-xs opacity-70 mt-2">
                       {message.timestamp.toLocaleTimeString()}
@@ -262,7 +253,7 @@ export function ChatInterface() {
 
       {/* Fixed Chat Input */}
       <div className="fixed bottom-3 left-0 right-0 px-4">
-        <div className="max-w-4xl mx-auto bg-background rounded-2xl shadow-md p-3 flex gap-3 items-center border border-border">
+        <div className="max-w-4xl mx-auto bg-background rounded-2xl shadow-md p-3 flex gap-3 items-end border border-border">
           <Button
             size="sm"
             variant="ghost"
@@ -274,15 +265,22 @@ export function ChatInterface() {
           </Button>
 
           <div className="flex-1 relative">
-            <Input
+            {/* ✅ Auto-Expanding Textarea */}
+            <textarea
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                e.target.style.height = "auto";
+                e.target.style.height = `${e.target.scrollHeight}px`;
+              }}
               onKeyPress={handleKeyPress}
               placeholder="What do you want to know?"
-              className="pr-20 py-3 text-base bg-input border-border focus:ring-primary focus:border-primary rounded-full"
+              rows={1}
               aria-label="Chat input"
+              className="w-full resize-none overflow-y-auto max-h-40 pr-20 py-3 text-base bg-input border border-border focus:ring-primary focus:border-primary rounded-2xl outline-none"
             />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+
+            <div className="absolute right-2 bottom-2 flex gap-1">
               <Button
                 size="sm"
                 variant="ghost"
