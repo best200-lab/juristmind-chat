@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, memo } from "react";
-import { Send, Mic, Paperclip } from "lucide-react";
+import { Send, Mic, Paperclip, ThumbsUp, ThumbsDown, RefreshCcw, Share2, Smartphone, MoreHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -7,11 +7,18 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 
+interface Source {
+  title: string;
+  url: string;
+}
+
 interface Message {
   id: string;
   content: string;
   sender: "user" | "ai";
   timestamp: Date;
+  sources?: Source[]; // Optional array for sources
+  attachments?: string[]; // Added: Optional array for attachment file names (for display)
 }
 
 const Markdown = memo(({ content }: { content: string }) => (
@@ -67,13 +74,28 @@ export function ChatInterface() {
   const { user } = useAuth();
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [shownSourcesMessages, setShownSourcesMessages] = useState<Set<string>>(new Set());
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]); // Added: State for selected files
+  const fileInputRef = useRef<HTMLInputElement>(null); // Added: Ref for hidden file input
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setSelectedFiles((prev) => [...prev, ...newFiles]);
+      e.target.value = ""; // Reset input for future selections
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSendMessage = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() && selectedFiles.length === 0) return;
 
     if (!user) {
       toast({
@@ -84,11 +106,17 @@ export function ChatInterface() {
       return;
     }
 
+    const attachmentNames = selectedFiles.map((file) => file.name);
+    const userContent = inputValue.trim()
+      ? inputValue + (attachmentNames.length > 0 ? "\n\nAttached files: " + attachmentNames.join(", ") : "")
+      : "Attached files: " + attachmentNames.join(", ");
+
     const newMessage: Message = {
       id: Date.now().toString(),
-      content: inputValue,
+      content: userContent,
       sender: "user",
       timestamp: new Date(),
+      attachments: attachmentNames,
     };
 
     setMessages((prev) => [...prev, newMessage]);
@@ -106,14 +134,17 @@ export function ChatInterface() {
     try {
       let chatId = localStorage.getItem("chat_id");
 
+      const formData = new FormData();
+      formData.append("question", inputValue); // Send raw inputValue (improvement)
+      if (chatId) formData.append("chat_id", chatId);
+      if (user?.id) formData.append("user_id", user.id);
+      selectedFiles.forEach((file) => {
+        formData.append("files", file);
+      });
+
       const response = await fetch("https://juristmind.onrender.com/ask", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: newMessage.content,
-          chat_id: chatId,
-          user_id: user?.id,
-        }),
+        body: formData,
       });
 
       if (!response.body) throw new Error("No response body from server");
@@ -161,6 +192,17 @@ export function ChatInterface() {
                 if (data.chat_url) {
                   console.log(`Chat stored at: ${data.chat_url}`);
                 }
+
+                if (data.sources) {
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const last = updated[updated.length - 1];
+                    if (last.sender === "ai") {
+                      last.sources = data.sources;
+                    }
+                    return updated;
+                  });
+                }
               }
             } catch (err) {
               console.error("Failed to parse chunk:", err);
@@ -169,6 +211,7 @@ export function ChatInterface() {
         }
       }
 
+      setSelectedFiles([]); // Clear files AFTER successful send
       setIsLoading(false);
     } catch (error) {
       console.error("Error streaming AI response:", error);
@@ -186,6 +229,9 @@ export function ChatInterface() {
         }
         return updated;
       });
+    } finally {
+      // Optionally clear here if you want to clear on error too
+      // setSelectedFiles([]);
     }
   };
 
@@ -194,6 +240,18 @@ export function ChatInterface() {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const toggleSources = (messageId: string) => {
+    setShownSourcesMessages((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -237,11 +295,65 @@ export function ChatInterface() {
                     {message.sender === "ai" ? (
                       <Markdown content={message.content} />
                     ) : (
-                      <p className="text-sm leading-relaxed">{message.content}</p>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
                     )}
                     <p className="text-xs opacity-70 mt-2">
                       {message.timestamp.toLocaleTimeString()}
                     </p>
+
+                    {message.sender === "ai" && (
+                      <>
+                        <div className="flex items-center gap-2 mt-2">
+                          {message.sources && message.sources.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleSources(message.id)}
+                            >
+                              Sources
+                            </Button>
+                          )}
+                          <Button size="icon" variant="ghost">
+                            <ThumbsUp className="w-4 h-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost">
+                            <ThumbsDown className="w-4 h-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost">
+                            <RefreshCcw className="w-4 h-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost">
+                            <Share2 className="w-4 h-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost">
+                            <Smartphone className="w-4 h-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </div>
+
+                        {shownSourcesMessages.has(message.id) && message.sources && message.sources.length > 0 && (
+                          <div className="mt-2 border-t pt-2">
+                            <h4 className="text-sm font-semibold mb-1">Sources</h4>
+                            <ul className="text-sm space-y-1">
+                              {message.sources.map((source, index) => (
+                                <li key={index}>
+                                  <a
+                                    href={source.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary hover:underline"
+                                  >
+                                    {source.title || source.url}
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -253,52 +365,82 @@ export function ChatInterface() {
 
       {/* Fixed Chat Input */}
       <div className="fixed bottom-3 left-0 right-0 px-4">
-        <div className="max-w-4xl mx-auto bg-background rounded-2xl shadow-md p-3 flex gap-3 items-end border border-border">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="p-2 h-10 w-10 rounded-full"
-            aria-label="Attach file"
-            disabled
-          >
-            <Paperclip className="w-5 h-5" />
-          </Button>
+        <div className="max-w-4xl mx-auto bg-background rounded-2xl shadow-md p-3 flex flex-col gap-2 border border-border">
+          {/* Added: Display selected files */}
+          {selectedFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2 px-2">
+              {selectedFiles.map((file, index) => (
+                <div key={index} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-full text-sm">
+                  {file.name}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-4 w-4"
+                    onClick={() => removeFile(index)}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
 
-          <div className="flex-1 relative">
-            {/* ✅ Auto-Expanding Textarea */}
-            <textarea
-              value={inputValue}
-              onChange={(e) => {
-                setInputValue(e.target.value);
-                e.target.style.height = "auto";
-                e.target.style.height = `${e.target.scrollHeight}px`;
-              }}
-              onKeyPress={handleKeyPress}
-              placeholder="What do you want to know?"
-              rows={1}
-              aria-label="Chat input"
-              className="w-full resize-none overflow-y-auto max-h-40 pr-20 py-3 text-base bg-input border border-border focus:ring-primary focus:border-primary rounded-2xl outline-none"
+          <div className="flex gap-3 items-end">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="p-2 h-10 w-10 rounded-full"
+              aria-label="Attach file"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Paperclip className="w-5 h-5" />
+            </Button>
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              multiple // Allow multiple files
+              accept=".pdf,.doc,.docx,.txt" // Accept documents
+              className="hidden"
             />
 
-            <div className="absolute right-2 bottom-2 flex gap-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="p-2 h-8 w-8 rounded-full"
-                aria-label="Voice input"
-                disabled
-              >
-                <Mic className="w-4 h-4" />
-              </Button>
-              <Button
-                onClick={handleSendMessage}
-                disabled={!inputValue.trim() || isLoading || !user}
-                size="sm"
-                className="p-2 h-8 w-8 rounded-full bg-primary hover:bg-primary-hover"
-                aria-label="Send message"
-              >
-                <Send className="w-3 h-3" />
-              </Button>
+            <div className="flex-1 relative">
+              {/* ✅ Auto-Expanding Textarea */}
+              <textarea
+                value={inputValue}
+                onChange={(e) => {
+                  setInputValue(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = `${e.target.scrollHeight}px`;
+                }}
+                onKeyPress={handleKeyPress}
+                placeholder="What do you want to know?"
+                rows={1}
+                aria-label="Chat input"
+                className="w-full resize-none overflow-y-auto max-h-40 pr-20 py-3 text-base bg-input border border-border focus:ring-primary focus:border-primary rounded-2xl outline-none"
+              />
+
+              <div className="absolute right-2 bottom-2 flex gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="p-2 h-8 w-8 rounded-full"
+                  aria-label="Voice input"
+                  disabled
+                >
+                  <Mic className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={(!inputValue.trim() && selectedFiles.length === 0) || isLoading || !user}
+                  size="sm"
+                  className="p-2 h-8 w-8 rounded-full bg-primary hover:bg-primary-hover"
+                  aria-label="Send message"
+                >
+                  <Send className="w-3 h-3" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
