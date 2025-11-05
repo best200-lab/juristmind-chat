@@ -46,16 +46,16 @@ export default function LawyersDirectory() {
 
   const fetchLawyers = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('search-lawyers', {
-        body: { action: 'get-all' }
+      const { data, error } = await supabase.functions.invoke("search-lawyers", {
+        body: { action: "get-all" },
       });
 
       if (error) throw error;
       setLawyers(data);
       setFilteredLawyers(data);
     } catch (error) {
-      console.error('Error fetching lawyers:', error);
-      toast.error('Failed to fetch lawyers');
+      console.error("Error fetching lawyers:", error);
+      toast.error("Failed to fetch lawyers");
     } finally {
       setLoading(false);
     }
@@ -63,27 +63,27 @@ export default function LawyersDirectory() {
 
   const fetchStates = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('search-lawyers', {
-        body: { action: 'get-states' }
+      const { data, error } = await supabase.functions.invoke("search-lawyers", {
+        body: { action: "get-states" },
       });
 
       if (error) throw error;
       setStates(data);
     } catch (error) {
-      console.error('Error fetching states:', error);
+      console.error("Error fetching states:", error);
     }
   };
 
   const fetchSpecializations = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('search-lawyers', {
-        body: { action: 'get-specializations' }
+      const { data, error } = await supabase.functions.invoke("search-lawyers", {
+        body: { action: "get-specializations" },
       });
 
       if (error) throw error;
       setSpecializations(data);
     } catch (error) {
-      console.error('Error fetching specializations:', error);
+      console.error("Error fetching specializations:", error);
     }
   };
 
@@ -91,20 +91,21 @@ export default function LawyersDirectory() {
     let filtered = lawyers;
 
     if (searchTerm) {
-      filtered = filtered.filter(lawyer => 
-        lawyer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lawyer.specialization.some(spec => 
-          spec.toLowerCase().includes(searchTerm.toLowerCase())
-        )
+      filtered = filtered.filter(
+        (lawyer) =>
+          lawyer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          lawyer.specialization.some((spec) =>
+            spec.toLowerCase().includes(searchTerm.toLowerCase())
+          )
       );
     }
 
     if (selectedState && selectedState !== "all") {
-      filtered = filtered.filter(lawyer => lawyer.state === selectedState);
+      filtered = filtered.filter((lawyer) => lawyer.state === selectedState);
     }
 
     if (selectedSpecialization && selectedSpecialization !== "all") {
-      filtered = filtered.filter(lawyer => 
+      filtered = filtered.filter((lawyer) =>
         lawyer.specialization.includes(selectedSpecialization)
       );
     }
@@ -122,8 +123,8 @@ export default function LawyersDirectory() {
         key={i}
         className={`w-4 h-4 ${
           i < Math.floor(rating)
-            ? 'fill-yellow-400 text-yellow-400'
-            : 'text-gray-300'
+            ? "fill-yellow-400 text-yellow-400"
+            : "text-gray-300"
         }`}
       />
     ));
@@ -152,31 +153,55 @@ export default function LawyersDirectory() {
           </p>
         </div>
 
-        <div className="flex gap-4 mb-8">
-          <div className="flex-1 relative">
+        {/* Filters Section (Mobile Responsive) */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8">
+          {/* Search Bar */}
+          <div className="w-full sm:flex-1 relative">
             <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input 
-              placeholder="Search lawyers..." 
+            <Input
+              placeholder="Search lawyers..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 w-full rounded-lg py-2"
             />
           </div>
-          
-          <Select value={selectedState} onValueChange={setSelectedState}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select State" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All States</SelectItem>
-              {states.map(state => (
-                <SelectItem key={state} value={state}>{state}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
 
-          <AddLawyerDialog onLawyerAdded={fetchLawyers} />
+          {/* State Selector */}
+          <div className="w-full sm:w-48">
+            <Select value={selectedState} onValueChange={setSelectedState}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select State" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All States</SelectItem>
+                {states.map((state) => (
+                  <SelectItem key={state} value={state}>
+                    {state}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Add Lawyer Button (Now Full Width on Mobile) */}
+          <div className="w-full sm:w-auto">
+            <Button
+              className="w-full sm:w-auto"
+              variant="default"
+              onClick={() => {
+                const dialogButton = document.querySelector(
+                  '[data-add-lawyer-dialog]'
+                ) as HTMLElement;
+                if (dialogButton) dialogButton.click();
+              }}
+            >
+              + Add Lawyer
+            </Button>
+          </div>
         </div>
+
+        {/* Hidden AddLawyerDialog Component */}
+        <AddLawyerDialog onLawyerAdded={fetchLawyers} />
 
         {/* Results Count */}
         <div className="mb-4">
@@ -213,15 +238,20 @@ export default function LawyersDirectory() {
               <CardContent>
                 {lawyer.description && (
                   <div className="mb-4">
-                    <p className="text-sm text-muted-foreground">{lawyer.description}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {lawyer.description}
+                    </p>
                   </div>
                 )}
-                
+
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm">
-                      {lawyer.location || (lawyer.city ? `${lawyer.city}, ${lawyer.state}` : lawyer.state)}
+                      {lawyer.location ||
+                        (lawyer.city
+                          ? `${lawyer.city}, ${lawyer.state}`
+                          : lawyer.state)}
                     </span>
                   </div>
 
@@ -235,8 +265,12 @@ export default function LawyersDirectory() {
                   {lawyer.social_media && (
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-muted-foreground" />
-                      <a 
-                        href={lawyer.social_media.startsWith('http') ? lawyer.social_media : `https://${lawyer.social_media}`}
+                      <a
+                        href={
+                          lawyer.social_media.startsWith("http")
+                            ? lawyer.social_media
+                            : `https://${lawyer.social_media}`
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-primary hover:underline"
@@ -249,8 +283,12 @@ export default function LawyersDirectory() {
                   {lawyer.website && (
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-muted-foreground" />
-                      <a 
-                        href={lawyer.website.startsWith('http') ? lawyer.website : `https://${lawyer.website}`}
+                      <a
+                        href={
+                          lawyer.website.startsWith("http")
+                            ? lawyer.website
+                            : `https://${lawyer.website}`
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-primary hover:underline"
@@ -275,13 +313,13 @@ export default function LawyersDirectory() {
 
                   <div className="flex gap-2 pt-4 border-t border-border">
                     {lawyer.email && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         className="flex-1"
                         onClick={() => {
                           navigator.clipboard.writeText(lawyer.email);
-                          toast.success('Email copied to clipboard');
+                          toast.success("Email copied to clipboard");
                         }}
                       >
                         <Mail className="w-3 h-3 mr-1" />
@@ -289,13 +327,13 @@ export default function LawyersDirectory() {
                       </Button>
                     )}
                     {lawyer.phone && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         className="flex-1"
                         onClick={() => {
                           navigator.clipboard.writeText(lawyer.phone);
-                          toast.success('Phone number copied to clipboard');
+                          toast.success("Phone number copied to clipboard");
                         }}
                       >
                         <Phone className="w-3 h-3 mr-1" />
