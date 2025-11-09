@@ -19,6 +19,8 @@ interface Message {
   timestamp: Date;
   sources?: Source[]; // Optional array for sources
   attachments?: string[]; // Added: Optional array for attachment file names (for display)
+  liked?: boolean; // Added: Track like status
+  disliked?: boolean; // Added: Track dislike status
 }
 
 const Markdown = memo(({ content }: { content: string }) => (
@@ -77,6 +79,7 @@ export function ChatInterface() {
   const [shownSourcesMessages, setShownSourcesMessages] = useState<Set<string>>(new Set());
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]); // Added: State for selected files
   const fileInputRef = useRef<HTMLInputElement>(null); // Added: Ref for hidden file input
+  const [chatId, setChatId] = useState<string | null>(null); // Added: State for chat_id
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -94,8 +97,23 @@ export function ChatInterface() {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() && selectedFiles.length === 0) return;
+  const handleSendMessage = async (regenerateMessageId?: string) => {
+    let effectiveQuestion = inputValue.trim();
+    let effectiveFiles = selectedFiles;
+
+    if (regenerateMessageId) {
+      // Find the user message before the AI message to regenerate
+      const aiIndex = messages.findIndex((msg) => msg.id === regenerateMessageId);
+      if (aiIndex > 0) {
+        const userMsg = messages[aiIndex - 1];
+        if (userMsg.sender === "user") {
+          effectiveQuestion = userMsg.content;
+          // Note: Attachments not regenerated; assume no files for retry or handle if needed
+        }
+      }
+    }
+
+    if (!effectiveQuestion && effectiveFiles.length === 0) return;
 
     if (!user) {
       toast({
@@ -106,9 +124,9 @@ export function ChatInterface() {
       return;
     }
 
-    const attachmentNames = selectedFiles.map((file) => file.name);
-    const userContent = inputValue.trim()
-      ? inputValue + (attachmentNames.length > 0 ? "\n\nAttached files: " + attachmentNames.join(", ") : "")
+    const attachmentNames = effectiveFiles.map((file) => file.name);
+    const userContent = effectiveQuestion
+      ? effectiveQuestion + (attachmentNames.length > 0 ? "\n\nAttached files: " + attachmentNames.join(", ") : "")
       : "Attached files: " + attachmentNames.join(", ");
 
     const newMessage: Message = {
@@ -119,26 +137,37 @@ export function ChatInterface() {
       attachments: attachmentNames,
     };
 
-    setMessages((prev) => [...prev, newMessage]);
+    if (!regenerateMessageId) {
+      setMessages((prev) => [...prev, newMessage]);
+    }
+
     setInputValue("");
     setIsLoading(true);
 
-    const aiMessage: Message = {
-      id: (Date.now() + 1).toString(),
+    let aiMessageId = regenerateMessageId || (Date.now() + 1).toString();
+    let aiMessage: Message = {
+      id: aiMessageId,
       content: "",
       sender: "ai",
       timestamp: new Date(),
     };
-    setMessages((prev) => [...prev, aiMessage]);
+
+    if (regenerateMessageId) {
+      // Update existing AI message
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === regenerateMessageId ? { ...msg, content: "" } : msg))
+      );
+    } else {
+      setMessages((prev) => [...prev, aiMessage]);
+    }
 
     try {
-      let chatId = localStorage.getItem("chat_id");
-
+      const effectiveChatId = regenerateMessageId ? chatId : localStorage.getItem("chat_id");
       const formData = new FormData();
-      formData.append("question", inputValue); // Send raw inputValue (improvement)
-      if (chatId) formData.append("chat_id", chatId);
+      formData.append("question", effectiveQuestion); // Send raw inputValue (improvement)
+      if (effectiveChatId) formData.append("chat_id", effectiveChatId);
       if (user?.id) formData.append("user_id", user.id);
-      selectedFiles.forEach((file) => {
+      effectiveFiles.forEach((file) => {
         formData.append("files", file);
       });
 
@@ -159,7 +188,6 @@ export function ChatInterface() {
         if (value) {
           const chunk = decoder.decode(value, { stream: true });
           const lines = chunk.split("\n\n");
-
           for (const line of lines) {
             if (!line.startsWith("data:")) continue;
             const dataStr = line.slice(5).trim();
@@ -169,35 +197,31 @@ export function ChatInterface() {
             }
             try {
               const data = JSON.parse(dataStr);
-
               if (data.content) {
                 setMessages((prev) => {
                   const updated = [...prev];
-                  const last = updated[updated.length - 1];
-                  if (last.sender === "ai") {
+                  const last = updated.find((msg) => msg.id === aiMessageId);
+                  if (last && last.sender === "ai") {
                     last.content += data.content;
                   }
                   return updated;
                 });
               }
-
               if (data.type === "done") {
                 done = true;
                 setIsLoading(false);
-
                 if (data.chat_id) {
                   localStorage.setItem("chat_id", data.chat_id);
+                  setChatId(data.chat_id);
                 }
-
                 if (data.chat_url) {
                   console.log(`Chat stored at: ${data.chat_url}`);
                 }
-
                 if (data.sources) {
                   setMessages((prev) => {
                     const updated = [...prev];
-                    const last = updated[updated.length - 1];
-                    if (last.sender === "ai") {
+                    const last = updated.find((msg) => msg.id === aiMessageId);
+                    if (last && last.sender === "ai") {
                       last.sources = data.sources;
                     }
                     return updated;
@@ -223,8 +247,8 @@ export function ChatInterface() {
       });
       setMessages((prev) => {
         const updated = [...prev];
-        const last = updated[updated.length - 1];
-        if (last.sender === "ai") {
+        const last = updated.find((msg) => msg.id === aiMessageId);
+        if (last && last.sender === "ai") {
           last.content += "**Error:** Failed to stream response. Please try again.";
         }
         return updated;
@@ -252,6 +276,43 @@ export function ChatInterface() {
       }
       return newSet;
     });
+  };
+
+  const handleFeedback = async (messageId: string, type: 'like' | 'dislike') => {
+    if (!chatId) return;
+
+    try {
+      const response = await fetch(`https://juristmind.onrender.com/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, message_id: messageId, feedback_type: type }),
+      });
+
+      if (response.ok) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, liked: type === 'like' ? true : msg.liked, disliked: type === 'dislike' ? true : msg.disliked }
+              : msg
+          )
+        );
+        toast({ title: "Feedback sent", description: `Message ${type}d successfully.` });
+      }
+    } catch (error) {
+      console.error("Error sending feedback:", error);
+      toast({ title: "Error", description: "Failed to send feedback.", variant: "destructive" });
+    }
+  };
+
+  const handleRegenerate = (messageId: string) => {
+    handleSendMessage(messageId);
+  };
+
+  const handleShare = (messageId: string) => {
+    if (!chatId) return;
+
+    navigator.clipboard.writeText(`${BASE_CHAT_URL}/public/chats/${chatId}.json`);
+    toast({ title: "Shared", description: "Chat URL copied to clipboard." });
   };
 
   return (
@@ -300,7 +361,6 @@ export function ChatInterface() {
                     <p className="text-xs opacity-70 mt-2">
                       {message.timestamp.toLocaleTimeString()}
                     </p>
-
                     {message.sender === "ai" && (
                       <>
                         <div className="flex items-center gap-2 mt-2">
@@ -313,16 +373,34 @@ export function ChatInterface() {
                               Sources
                             </Button>
                           )}
-                          <Button size="icon" variant="ghost">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleFeedback(message.id, 'like')}
+                            className={message.liked ? "text-green-500" : ""}
+                          >
                             <ThumbsUp className="w-4 h-4" />
                           </Button>
-                          <Button size="icon" variant="ghost">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleFeedback(message.id, 'dislike')}
+                            className={message.disliked ? "text-red-500" : ""}
+                          >
                             <ThumbsDown className="w-4 h-4" />
                           </Button>
-                          <Button size="icon" variant="ghost">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleRegenerate(message.id)}
+                          >
                             <RefreshCcw className="w-4 h-4" />
                           </Button>
-                          <Button size="icon" variant="ghost">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleShare(message.id)}
+                          >
                             <Share2 className="w-4 h-4" />
                           </Button>
                           <Button size="icon" variant="ghost">
@@ -332,7 +410,6 @@ export function ChatInterface() {
                             <MoreHorizontal className="w-4 h-4" />
                           </Button>
                         </div>
-
                         {shownSourcesMessages.has(message.id) && message.sources && message.sources.length > 0 && (
                           <div className="mt-2 border-t pt-2">
                             <h4 className="text-sm font-semibold mb-1">Sources</h4>
@@ -362,7 +439,6 @@ export function ChatInterface() {
           )}
         </div>
       </div>
-
       {/* Fixed Chat Input */}
       <div className="fixed bottom-3 left-0 right-0 px-4">
         <div className="max-w-4xl mx-auto bg-background rounded-2xl shadow-md p-3 flex flex-col gap-2 border border-border">
@@ -384,7 +460,6 @@ export function ChatInterface() {
               ))}
             </div>
           )}
-
           <div className="flex gap-3 items-end">
             <Button
               size="sm"
@@ -395,7 +470,6 @@ export function ChatInterface() {
             >
               <Paperclip className="w-5 h-5" />
             </Button>
-
             <input
               type="file"
               ref={fileInputRef}
@@ -404,7 +478,6 @@ export function ChatInterface() {
               accept=".pdf,.doc,.docx,.txt" // Accept documents
               className="hidden"
             />
-
             <div className="flex-1 relative">
               {/* ✅ Auto-Expanding Textarea */}
               <textarea
@@ -420,7 +493,6 @@ export function ChatInterface() {
                 aria-label="Chat input"
                 className="w-full resize-none overflow-y-auto max-h-40 pr-20 py-3 text-base bg-input border border-border focus:ring-primary focus:border-primary rounded-2xl outline-none"
               />
-
               <div className="absolute right-2 bottom-2 flex gap-1">
                 <Button
                   size="sm"
@@ -432,7 +504,7 @@ export function ChatInterface() {
                   <Mic className="w-4 h-4" />
                 </Button>
                 <Button
-                  onClick={handleSendMessage}
+                  onClick={() => handleSendMessage()}
                   disabled={(!inputValue.trim() && selectedFiles.length === 0) || isLoading || !user}
                   size="sm"
                   className="p-2 h-8 w-8 rounded-full bg-primary hover:bg-primary-hover"
