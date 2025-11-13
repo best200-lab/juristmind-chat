@@ -1,17 +1,15 @@
 import { useState, useEffect, useRef, memo } from "react";
-import { Send, Mic, Paperclip, ThumbsUp, ThumbsDown, RefreshCcw, Share2, Smartphone, MoreHorizontal, X } from "lucide-react";
+import { Send, Mic, Paperclip, ThumbsUp, ThumbsDown, RefreshCcw, Share2, Smartphone, MoreHorizontal, X, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
-
 interface Source {
   title: string;
   url: string;
 }
-
 interface Message {
   id: string;
   content: string;
@@ -22,7 +20,6 @@ interface Message {
   liked?: boolean; // Added: Track like status
   disliked?: boolean; // Added: Track dislike status
 }
-
 const Markdown = memo(({ content }: { content: string }) => (
   <div className="prose prose-sm max-w-none text-foreground">
     <ReactMarkdown
@@ -68,7 +65,6 @@ const Markdown = memo(({ content }: { content: string }) => (
     </ReactMarkdown>
   </div>
 ));
-
 export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -80,11 +76,9 @@ export function ChatInterface() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]); // Added: State for selected files
   const fileInputRef = useRef<HTMLInputElement>(null); // Added: Ref for hidden file input
   const [chatId, setChatId] = useState<string | null>(null); // Added: State for chat_id
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
@@ -92,15 +86,12 @@ export function ChatInterface() {
       e.target.value = ""; // Reset input for future selections
     }
   };
-
   const removeFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
-
   const handleSendMessage = async (regenerateMessageId?: string) => {
     let effectiveQuestion = inputValue.trim();
     let effectiveFiles = selectedFiles;
-
     if (regenerateMessageId) {
       // Find the user message before the AI message to regenerate
       const aiIndex = messages.findIndex((msg) => msg.id === regenerateMessageId);
@@ -112,9 +103,7 @@ export function ChatInterface() {
         }
       }
     }
-
     if (!effectiveQuestion && effectiveFiles.length === 0) return;
-
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -123,12 +112,10 @@ export function ChatInterface() {
       });
       return;
     }
-
     const attachmentNames = effectiveFiles.map((file) => file.name);
     const userContent = effectiveQuestion
       ? effectiveQuestion + (attachmentNames.length > 0 ? "\n\nAttached files: " + attachmentNames.join(", ") : "")
       : "Attached files: " + attachmentNames.join(", ");
-
     const newMessage: Message = {
       id: Date.now().toString(),
       content: userContent,
@@ -136,14 +123,11 @@ export function ChatInterface() {
       timestamp: new Date(),
       attachments: attachmentNames,
     };
-
     if (!regenerateMessageId) {
       setMessages((prev) => [...prev, newMessage]);
     }
-
     setInputValue("");
     setIsLoading(true);
-
     let aiMessageId = regenerateMessageId || (Date.now() + 1).toString();
     let aiMessage: Message = {
       id: aiMessageId,
@@ -151,7 +135,6 @@ export function ChatInterface() {
       sender: "ai",
       timestamp: new Date(),
     };
-
     if (regenerateMessageId) {
       // Update existing AI message
       setMessages((prev) =>
@@ -160,7 +143,6 @@ export function ChatInterface() {
     } else {
       setMessages((prev) => [...prev, aiMessage]);
     }
-
     try {
       const effectiveChatId = regenerateMessageId ? chatId : localStorage.getItem("chat_id");
       const formData = new FormData();
@@ -170,18 +152,14 @@ export function ChatInterface() {
       effectiveFiles.forEach((file) => {
         formData.append("files", file);
       });
-
       const response = await fetch("https://juristmind.onrender.com/ask", {
         method: "POST",
         body: formData,
       });
-
       if (!response.body) throw new Error("No response body from server");
-
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let done = false;
-
       while (!done) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
@@ -234,7 +212,6 @@ export function ChatInterface() {
           }
         }
       }
-
       setSelectedFiles([]); // Clear files AFTER successful send
       setIsLoading(false);
     } catch (error) {
@@ -258,14 +235,12 @@ export function ChatInterface() {
       // setSelectedFiles([]);
     }
   };
-
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
-
   const toggleSources = (messageId: string) => {
     setShownSourcesMessages((prev) => {
       const newSet = new Set(prev);
@@ -277,17 +252,14 @@ export function ChatInterface() {
       return newSet;
     });
   };
-
   const handleFeedback = async (messageId: string, type: 'like' | 'dislike') => {
     if (!chatId) return;
-
     try {
       const response = await fetch(`https://juristmind.onrender.com/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chat_id: chatId, message_id: messageId, feedback_type: type }),
       });
-
       if (response.ok) {
         setMessages((prev) =>
           prev.map((msg) =>
@@ -303,18 +275,19 @@ export function ChatInterface() {
       toast({ title: "Error", description: "Failed to send feedback.", variant: "destructive" });
     }
   };
-
   const handleRegenerate = (messageId: string) => {
     handleSendMessage(messageId);
   };
-
   const handleShare = (messageId: string) => {
     if (!chatId) return;
-
     navigator.clipboard.writeText(`${BASE_CHAT_URL}/public/chats/${chatId}.json`);
     toast({ title: "Shared", description: "Chat URL copied to clipboard." });
   };
 
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copied", description: "Message copied to clipboard." });
+  };
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Messages area */}
@@ -389,7 +362,15 @@ export function ChatInterface() {
                           >
                             <ThumbsDown className="w-4 h-4" />
                           </Button>
+                          
                           <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleCopy(message.content)}
+                          >
+                            <Copy className="w-4 h-4" />
+                          </Button>
+<Button
                             size="icon"
                             variant="ghost"
                             onClick={() => handleRegenerate(message.id)}
