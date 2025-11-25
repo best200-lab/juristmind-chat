@@ -1,3 +1,4 @@
+// ...existing code...
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,13 +91,13 @@ export function UserProfile() {
       if (error) throw error;
       
       toast({
-        title: "Success",
-        description: "Profile updated successfully",
+        title: "Update Successful",
+        description: "Your profile has been updated.",
       });
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to update profile",
+        title: "Update Failed",
+        description: "Unable to update your profile. Please try again or contact support if the issue persists.",
         variant: "destructive",
       });
     } finally {
@@ -117,13 +118,13 @@ export function UserProfile() {
       if (error) throw error;
       
       toast({
-        title: "Success",
-        description: "Settings updated successfully",
+        title: "Update Successful",
+        description: "Your settings have been saved.",
       });
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to update settings",
+        title: "Update Failed",
+        description: "Unable to save settings. Please try again or contact support if the problem continues.",
         variant: "destructive",
       });
     } finally {
@@ -132,7 +133,7 @@ export function UserProfile() {
   };
 
   if (loading) {
-    return <div className="p-6">Loading...</div>;
+    return <div className="p-6">Loading profile and settings...</div>;
   }
 
   return (
@@ -169,7 +170,7 @@ export function UserProfile() {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h3 className="font-semibold">{profile.display_name || 'No name set'}</h3>
+                <h3 className="font-semibold">{profile.display_name || 'Name not provided'}</h3>
                 <p className="text-muted-foreground">{profile.email}</p>
               </div>
             </div>
@@ -185,18 +186,18 @@ export function UserProfile() {
               </div>
               
               <div>
-                <Label htmlFor="bio">Bio</Label>
+                <Label htmlFor="bio">Professional Summary</Label>
                 <Textarea
                   id="bio"
                   value={profile.bio || ''}
                   onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                  placeholder="Tell us about yourself..."
+                  placeholder="Provide a concise professional summary suitable for colleagues and collaborators."
                 />
               </div>
             </div>
             
             <Button onClick={saveProfile} disabled={saving}>
-              {saving ? 'Saving...' : 'Save Profile'}
+              {saving ? 'Updating...' : 'Update Profile'}
             </Button>
           </CardContent>
         </Card>
@@ -224,7 +225,7 @@ export function UserProfile() {
               </div>
               
               <div className="flex items-center justify-between">
-                <Label htmlFor="notifications">Notifications</Label>
+                <Label htmlFor="notifications">Enable Notifications</Label>
                 <input
                   id="notifications"
                   type="checkbox"
@@ -234,7 +235,7 @@ export function UserProfile() {
               </div>
               
               <div className="flex items-center justify-between">
-                <Label htmlFor="emailNotifications">Email Notifications</Label>
+                <Label htmlFor="emailNotifications">Enable Email Notifications</Label>
                 <input
                   id="emailNotifications"
                   type="checkbox"
@@ -275,7 +276,7 @@ export function UserProfile() {
             </div>
             
             <Button onClick={saveSettings} disabled={saving}>
-              {saving ? 'Saving...' : 'Save Settings'}
+              {saving ? 'Updating...' : 'Save Settings'}
             </Button>
           </CardContent>
         </Card>
@@ -283,3 +284,4 @@ export function UserProfile() {
     </div>
   );
 }
+// ...existing code...

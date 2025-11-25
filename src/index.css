@@ -1,80 +1,206 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ----------------------------- */
+/*      LIGHT THEME VARIABLES    */
+/* ----------------------------- */
 @layer base {
   :root {
-    /* BRIGHT WHITE THEME */
-    --background: 0 0% 100%;        /* Pure white */
-    --foreground: 0 0% 6%;          /* Deep near-black text */
+    /* Core */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 6%;
 
-    --card: 0 0% 100%;              /* Keep cards pure white */
+    /* Surface / cards */
+    --card: 0 0% 100%;
     --card-foreground: 0 0% 8%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 8%;
 
-    /* Primary = darker gray for contrast */
-    --primary: 0 0% 15%;
+    /* Accent / primary */
+    --primary: 215 14% 18%; /* subtle bluish tint */
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 0 0% 10%;
+    --primary-hover: 215 14% 14%;
 
-    /* Secondary layers = light neutral grays */
-    --secondary: 0 0% 98%;          /* Very light gray */
+    /* Secondary */
+    --secondary: 0 0% 98%;
     --secondary-foreground: 0 0% 10%;
 
     --muted: 0 0% 97%;
     --muted-foreground: 0 0% 40%;
 
-    --accent: 0 0% 96%;
+    --accent: 210 10% 96%;
     --accent-foreground: 0 0% 10%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
+    /* Utilities */
     --border: 0 0% 90%;
     --input: 0 0% 98%;
-    --ring: 0 0% 20%;
+    --ring: 220 10% 20%;
 
-    /* Sidebar (slight gray to separate) */
+    /* Sidebar */
     --sidebar-background: 0 0% 99%;
     --sidebar-foreground: 0 0% 8%;
     --sidebar-primary: 0 0% 15%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 97%;
-    --sidebar-accent-foreground: 0 0% 8%;
-    --sidebar-border: 0 0% 90%;
-    --sidebar-ring: 0 0% 20%;
 
-    --radius: 0.75rem;
+    /* Radii & glass */
+    --radius: 1.25rem; /* sleek rounded corners */
+    --pill-radius: 9999px;
 
-    /* Gradients with stronger separation */
-    --gradient-primary: linear-gradient(135deg, hsl(0, 0%, 100%), hsl(0, 0%, 95%));
-    --gradient-surface: linear-gradient(180deg, hsl(0, 0%, 100%), hsl(0, 0%, 97%));
-    --gradient-accent: linear-gradient(135deg, hsl(0, 0%, 97%), hsl(0, 0%, 93%));
+    --card-glass-gradient: linear-gradient(180deg, hsl(0 0% 100% / 0.90), hsl(0 0% 100% / 0.65));
+    --glass-border: hsl(var(--border) / 0.55);
 
-    /* Shadows (stronger for bright mode) */
-    --shadow-sm: 0 1px 3px hsl(0 0% 0% / 0.08);
-    --shadow-md: 0 4px 6px hsl(0 0% 0% / 0.12);
-    --shadow-lg: 0 10px 20px hsl(0 0% 0% / 0.15);
-    --shadow-glow: 0 0 25px hsl(0 0% 0% / 0.12);
+    /* Shadows */
+    --shadow-sm: 0 6px 14px hsl(0 0% 0% / 0.06);
+    --shadow-md: 0 10px 30px hsl(0 0% 0% / 0.08);
+    --shadow-lg: 0 20px 50px hsl(0 0% 0% / 0.10);
+    --shadow-glow: 0 0 30px hsl(0 0% 0% / 0.06);
 
     /* Transitions */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: all 0.28s cubic-bezier(0.2, 0.9, 0.2, 1);
     --transition-fast: all 0.15s ease-out;
   }
 
   .dark {
-    /* keep your existing dark theme as is */
+    /* dark mode variables (optional) */
   }
 }
 
+/* ----------------------------- */
+/*      GLOBAL STYLING FIXES     */
+/* ----------------------------- */
 @layer base {
+  /* Apply border color via CSS to avoid PostCSS @apply issues on * */
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
+  }
+
+  html, body, #root {
+    height: 100%;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+  }
+
+  /* Make form elements follow the sleek design */
+  input, textarea, select, button {
+    border-radius: calc(var(--radius) * 0.7);
+    border: 1px solid hsl(var(--border) / 0.9);
+    background: hsl(var(--input) / 0.95);
+    padding: 0.5rem 0.75rem;
+    color: hsl(var(--foreground));
+    transition: var(--transition-fast);
+  }
+
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    box-shadow: 0 4px 18px hsl(0 0% 0% / 0.06), 0 0 0 4px hsl(var(--ring) / 0.12);
+    border-color: hsl(var(--ring));
   }
 }
+
+/* ----------------------------- */
+/*  SLEEK GLASS COMPONENTS       */
+/* ----------------------------- */
+@layer components {
+  .glass-card {
+    background: var(--card-glass-gradient);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(10px) saturate(130%);
+    -webkit-backdrop-filter: blur(10px) saturate(130%);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md), var(--shadow-glow);
+    color: hsl(var(--card-foreground));
+    transition: var(--transition-smooth);
+    position: relative;
+    overflow: clip;
+  }
+
+  .glass-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 32px 80px hsl(0 0% 0% / 0.09), var(--shadow-glow);
+  }
+
+  .glass-card--thin {
+    padding: 1rem;
+  }
+
+  .glass-card--padded {
+    padding: 1.5rem;
+  }
+
+  .rounded-sleek {
+    border-radius: var(--pill-radius) !important;
+  }
+
+  .glass-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: linear-gradient(180deg, hsl(0 0% 100% / 0.95), hsl(0 0% 100% / 0.75));
+    border: 1px solid hsl(var(--border) / 0.5);
+    padding: 0.35rem 0.9rem;
+    border-radius: var(--pill-radius);
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-fast);
+    color: hsl(var(--foreground));
+  }
+
+  .glass-pill:active {
+    transform: translateY(1px);
+    box-shadow: 0 6px 14px hsl(0 0% 0% / 0.04);
+  }
+
+  .glass-muted {
+    background: hsl(var(--background) / 0.6);
+    border: 1px solid hsl(var(--border) / 0.45);
+    border-radius: calc(var(--radius) * 0.7);
+    box-shadow: 0 8px 20px hsl(0 0% 0% / 0.04);
+  }
+
+  /* glossy highlight overlay */
+  .glass-card::before {
+    content: "";
+    position: absolute;
+    left: -10%;
+    top: -40%;
+    width: 120%;
+    height: 60%;
+    pointer-events: none;
+    background: linear-gradient(180deg,
+      rgba(255,255,255,0.72) 0%,
+      rgba(255,255,255,0.22) 28%,
+      rgba(255,255,255,0) 60%);
+    transform: rotate(-8deg);
+    opacity: 0.65;
+    border-radius: calc(var(--radius) * 1.2);
+    mix-blend-mode: overlay;
+  }
+
+  /* Utility sizes */
+  .glass-sm { padding: 0.5rem; }
+  .glass-md { padding: 1rem; }
+  .glass-lg { padding: 1.75rem; }
+}
+
+/* ----------------------------- */
+/*  EXTRA UTILITIES / EXAMPLES   */
+/* ----------------------------- */
+@layer utilities {
+  .text-muted {
+    color: hsl(var(--muted-foreground));
+  }
+
+  .card-border-soft {
+    border: 1px solid hsl(var(--border) / 0.6);
+  }
+
+  .elevated {
+    box-shadow: var(--shadow-lg);
+  }
+}
+/* ...existing code... */

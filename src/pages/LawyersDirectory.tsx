@@ -1,3 +1,4 @@
+// ...existing code...
 import { useState, useEffect } from "react";
 import { Search, MapPin, Star, Phone, Mail, Award, Scale, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,7 +56,7 @@ export default function LawyersDirectory() {
       setFilteredLawyers(data);
     } catch (error) {
       console.error("Error fetching lawyers:", error);
-      toast.error("Failed to fetch lawyers");
+      toast.error("Unable to retrieve the lawyer directory. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -91,12 +92,13 @@ export default function LawyersDirectory() {
     let filtered = lawyers;
 
     if (searchTerm) {
+      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (lawyer) =>
-          lawyer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          lawyer.specialization.some((spec) =>
-            spec.toLowerCase().includes(searchTerm.toLowerCase())
-          )
+          lawyer.name.toLowerCase().includes(term) ||
+          lawyer.specialization.some((spec) => spec.toLowerCase().includes(term)) ||
+          lawyer.city?.toLowerCase().includes(term) ||
+          lawyer.state.toLowerCase().includes(term)
       );
     }
 
@@ -121,10 +123,9 @@ export default function LawyersDirectory() {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
+        aria-hidden
         className={`w-4 h-4 ${
-          i < Math.floor(rating)
-            ? "fill-yellow-400 text-yellow-400"
-            : "text-gray-300"
+          i < Math.floor(rating) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
         }`}
       />
     ));
@@ -134,8 +135,8 @@ export default function LawyersDirectory() {
     return (
       <div className="h-full bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading lawyers...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+          <p className="mt-2 text-muted-foreground">Retrieving lawyer directory…</p>
         </div>
       </div>
     );
@@ -146,31 +147,35 @@ export default function LawyersDirectory() {
       <div className="max-w-6xl mx-auto p-6">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">
-            Connect with a Lawyer
+            Legal Practitioner Directory
           </h1>
           <p className="text-muted-foreground">
-            Find verified legal professionals in Nigeria
+            Search and connect with vetted legal professionals across Nigeria.
+            Use the filters to refine results by location and area of practice.
           </p>
         </div>
 
-        {/* Filters Section (Mobile Responsive) */}
+        {/* Filters Section */}
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8">
           {/* Search Bar */}
           <div className="w-full sm:flex-1 relative">
+            <label htmlFor="lawyer-search" className="sr-only">Search lawyers</label>
             <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search lawyers..."
+              id="lawyer-search"
+              placeholder="Search by name, city, or specialty"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 w-full rounded-lg py-2"
+              aria-label="Search lawyers by name, city, or specialization"
             />
           </div>
 
           {/* State Selector */}
           <div className="w-full sm:w-48">
-            <Select value={selectedState} onValueChange={setSelectedState}>
+            <Select value={selectedState} onValueChange={setSelectedState} aria-label="Filter by state">
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select State" />
+                <SelectValue placeholder="All States" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All States</SelectItem>
@@ -183,7 +188,24 @@ export default function LawyersDirectory() {
             </Select>
           </div>
 
-          {/* Add Lawyer Button (Now Full Width on Mobile) */}
+          {/* Specialization Selector */}
+          <div className="w-full sm:w-48">
+            <Select value={selectedSpecialization} onValueChange={setSelectedSpecialization} aria-label="Filter by specialization">
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All Specializations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Specializations</SelectItem>
+                {specializations.map((spec) => (
+                  <SelectItem key={spec} value={spec}>
+                    {spec}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Add Lawyer Button */}
           <div className="w-full sm:w-auto">
             <Button
               className="w-full sm:w-auto"
@@ -195,7 +217,7 @@ export default function LawyersDirectory() {
                 if (dialogButton) dialogButton.click();
               }}
             >
-              + Add Lawyer
+              + Submit Practitioner
             </Button>
           </div>
         </div>
@@ -206,7 +228,7 @@ export default function LawyersDirectory() {
         {/* Results Count */}
         <div className="mb-4">
           <p className="text-sm text-muted-foreground">
-            {filteredLawyers.length} lawyer(s) found
+            Showing {filteredLawyers.length} result{filteredLawyers.length !== 1 ? "s" : ""}
           </p>
         </div>
 
@@ -226,10 +248,10 @@ export default function LawyersDirectory() {
                         </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 mb-2">
+                    <div className="flex items-center gap-1 mb-2" aria-hidden>
                       {renderStars(lawyer.rating)}
                       <span className="text-sm text-muted-foreground ml-1">
-                        ({lawyer.total_ratings} reviews)
+                        ({lawyer.total_ratings} review{lawyer.total_ratings !== 1 ? "s" : ""})
                       </span>
                     </div>
                   </div>
@@ -258,7 +280,7 @@ export default function LawyersDirectory() {
                   <div className="flex items-center gap-2">
                     <Award className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm">
-                      {lawyer.years_experience} years experience
+                      {lawyer.years_experience} year{lawyer.years_experience !== 1 ? "s" : ""} experience
                     </span>
                   </div>
 
@@ -275,7 +297,7 @@ export default function LawyersDirectory() {
                         rel="noopener noreferrer"
                         className="text-sm text-primary hover:underline"
                       >
-                        Social Media
+                        Social profile
                       </a>
                     </div>
                   )}
@@ -293,7 +315,7 @@ export default function LawyersDirectory() {
                         rel="noopener noreferrer"
                         className="text-sm text-primary hover:underline"
                       >
-                        Website
+                        Official website
                       </a>
                     </div>
                   )}
@@ -319,8 +341,9 @@ export default function LawyersDirectory() {
                         className="flex-1"
                         onClick={() => {
                           navigator.clipboard.writeText(lawyer.email);
-                          toast.success("Email copied to clipboard");
+                          toast.success("Email address copied to clipboard.");
                         }}
+                        aria-label={`Copy email for ${lawyer.name}`}
                       >
                         <Mail className="w-3 h-3 mr-1" />
                         Email
@@ -333,11 +356,12 @@ export default function LawyersDirectory() {
                         className="flex-1"
                         onClick={() => {
                           navigator.clipboard.writeText(lawyer.phone);
-                          toast.success("Phone number copied to clipboard");
+                          toast.success("Phone number copied to clipboard.");
                         }}
+                        aria-label={`Copy phone number for ${lawyer.name}`}
                       >
                         <Phone className="w-3 h-3 mr-1" />
-                        Call
+                        Phone
                       </Button>
                     )}
                   </div>
@@ -351,10 +375,11 @@ export default function LawyersDirectory() {
           <div className="text-center py-12">
             <Scale className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">
-              No lawyers found
+              No practitioners match your criteria
             </h3>
             <p className="text-muted-foreground">
-              Try adjusting your search criteria or browse all available lawyers.
+              Please broaden your search or remove filters to see more results.
+                    If you believe a qualified practitioner is missing, you may submit their details.
             </p>
           </div>
         )}
@@ -362,3 +387,4 @@ export default function LawyersDirectory() {
     </div>
   );
 }
+// ...existing code...
