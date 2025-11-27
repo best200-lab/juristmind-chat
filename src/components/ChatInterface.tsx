@@ -154,7 +154,7 @@ export function ChatInterface() {
       if (user?.id) formData.append("user_id", user.id);
       effectiveFiles.forEach((sf) => formData.append("files", sf.file));
 
-      const response = await fetch("https://juristmind.onrender.com/ask", { method: "POST", body: formData });
+      const response = await fetch("https://http://localhost:8080/", { method: "POST", body: formData });
       if (!response.body) throw new Error("No response body from server");
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -207,7 +207,7 @@ export function ChatInterface() {
     } catch (error) {
       console.error("Error streaming AI response:", error);
       setIsLoading(false);
-      toast({ title: "Error", description: "Failed to connect with AI service. Please try again.", variant: "destructive" });
+      toast({ title: "Error", description: "We are coming soon. Please try again.", variant: "destructive" });
       setMessages((prev) => {
         const updated = [...prev];
         const last = updated.find((msg) => msg.id === aiMessageId);
