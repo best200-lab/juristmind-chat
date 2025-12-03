@@ -154,7 +154,7 @@ export function ChatInterface() {
       if (user?.id) formData.append("user_id", user.id);
       effectiveFiles.forEach((sf) => formData.append("files", sf.file));
 
-      const response = await fetch(""https://juristmind.onrender.com", { method: "POST", body: formData });
+      const response = await fetch(""https://juristmind.onrender.com/ask", { method: "POST", body: formData });
       if (!response.body) throw new Error("No response body from server");
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
