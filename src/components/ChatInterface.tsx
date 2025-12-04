@@ -89,6 +89,7 @@ export function ChatInterface() {
 
   // 💡 FIX 2: Load messages when chatId changes
   useEffect(() => {
+    // Requires a logged-in user to fetch messages due to RLS
     if (!chatId || !user) {
         setMessages([]); 
         return;
@@ -97,7 +98,6 @@ export function ChatInterface() {
     const loadMessages = async () => {
         setIsLoading(true);
         try {
-            // Note: We select `created_at` which is the default Supabase timestamp column
             const { data, error } = await supabase
                 .from('chat_messages')
                 .select('id, content, sender, created_at, sources') 
@@ -132,6 +132,7 @@ export function ChatInterface() {
   useEffect(() => {
     if (!chatId) return;
 
+    // Use a unique channel name tied to the session
     const channel = supabase.channel(`chat_updates:${chatId}`);
 
     channel
@@ -203,8 +204,9 @@ export function ChatInterface() {
     const attachmentNames = effectiveFiles.map((sf) => sf.file.name);
     const userContent = effectiveQuestion
       ? effectiveQuestion + (attachmentNames.length ? "\n\nAttached files: " + attachmentNames.join(", ") : "")
-      : "Attached files: " + attachmentNames.join(", ");
+      : "Attached files: " + attachmentNames.join(", ";
     
+    // Create the message object for local display immediately
     const tempMessageId = Date.now().toString(); 
     const newMessage: Message = {
       id: tempMessageId,
