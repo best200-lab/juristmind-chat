@@ -230,31 +230,30 @@ export function ChatInterface() {
     try {
         let effectiveChatId = regenerateMessageId ? chatId : localStorage.getItem("chat_id");
         
-        // 💡 FIX 4A: Session Creation (if new chat)
+        // 💡 Session Creation (if new chat)
         if (!effectiveChatId) {
             const { data: newSession, error: sessionError } = await supabase
                 .from('chat_sessions')
                 .insert({ user_id: user.id })
                 .select('id')
                 .single();
-            
+           
             if (sessionError) throw sessionError;
-            
+           
             effectiveChatId = newSession.id;
             localStorage.setItem("chat_id", effectiveChatId);
             setChatId(effectiveChatId);
         }
 
-        // 💡 FIX 4B: Insert User Message into Supabase
+        // ✅ FIXED: Insert user message – removed user_id (your table doesn't have it)
         const { error: insertError } = await supabase
             .from('chat_messages')
             .insert({
                 session_id: effectiveChatId,
-                user_id: user.id, // This MUST be the user's UUID from Auth
-                content: effectiveQuestion, 
-                sender: 'user', 
+                content: effectiveQuestion || "Uploaded files",
+                sender: 'user',
             });
-            
+
         if (insertError) throw insertError;
         
         // --- Call External API ---
