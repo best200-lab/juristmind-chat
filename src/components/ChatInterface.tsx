@@ -1,4 +1,3 @@
-// ...existing code...
 import { useState, useEffect, useRef, memo } from "react";
 import { Send, Mic, Paperclip, ThumbsUp, ThumbsDown, RefreshCcw, Share2, MoreHorizontal, X, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
+// 💡 FIX 1: Import Supabase client
+import { supabase } from "@/integrations/supabase/client"; 
 
 interface Source { title: string; url: string; }
 interface Message {
@@ -18,12 +19,13 @@ interface Message {
   attachments?: string[];
   liked?: boolean;
   disliked?: boolean;
+  db_id?: string; // Add optional DB ID to track fetched/realtime messages
 }
 
 type SelectedFile = {
   id: string;
   file: File;
-  preview?: string; // image preview URL for images
+  preview?: string;
 };
 
 const Markdown = memo(({ content }: { content: string }) => (
@@ -69,7 +71,8 @@ export function ChatInterface() {
   const [shownSourcesMessages, setShownSourcesMessages] = useState<Set<string>>(new Set());
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [chatId, setChatId] = useState<string | null>(null);
+  // Initialize from localStorage for persistence
+  const [chatId, setChatId] = useState<string | null>(() => localStorage.getItem("chat_id")); 
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -84,6 +87,81 @@ export function ChatInterface() {
     };
   }, [selectedFiles]);
 
+  // 💡 FIX 2: Load messages when chatId changes
+  useEffect(() => {
+    if (!chatId || !user) {
+        setMessages([]); 
+        return;
+    }
+
+    const loadMessages = async () => {
+        setIsLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('chat_messages')
+                .select('id, content, sender, created_at, sources') 
+                .eq('session_id', chatId)
+                .order('created_at', { ascending: true }); 
+
+            if (error) throw error;
+            
+            const fetchedMessages: Message[] = data.map(msg => ({
+                id: msg.id, 
+                db_id: msg.id, // Store DB ID
+                content: msg.content,
+                sender: msg.sender as 'user' | 'ai',
+                timestamp: new Date(msg.created_at),
+                sources: msg.sources || undefined,
+            }));
+
+            setMessages(fetchedMessages);
+        } catch (error) {
+            console.error('Error fetching chat messages:', error);
+            toast({ title: "Error", description: "Failed to load chat messages.", variant: "destructive" });
+            setMessages([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    loadMessages();
+  }, [chatId, user, toast]); 
+
+  // 💡 FIX 3: Realtime Subscription
+  useEffect(() => {
+    if (!chatId) return;
+
+    const channel = supabase.channel(`chat_updates:${chatId}`);
+
+    channel
+        .on(
+            'postgres_changes',
+            { 
+                event: 'INSERT',   
+                schema: 'public',
+                table: 'chat_messages',
+                filter: `session_id=eq.${chatId}` 
+            },
+            (payload) => {
+                // Prevent duplication if the message was already added by the current client (optional)
+                if (!messages.some(msg => msg.db_id === payload.new.id)) {
+                    setMessages(prevMessages => [...prevMessages, {
+                        id: payload.new.id, 
+                        db_id: payload.new.id,
+                        content: payload.new.content,
+                        sender: payload.new.sender as 'user' | 'ai',
+                        timestamp: new Date(payload.new.created_at),
+                    }]);
+                }
+            }
+        )
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channel);
+    };
+  }, [chatId, messages]);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const newFiles = Array.from(e.target.files).map((file) => {
@@ -93,7 +171,6 @@ export function ChatInterface() {
     });
 
     setSelectedFiles((prev) => [...prev, ...newFiles]);
-    // reset input so same file can be re-selected if removed immediately
     e.target.value = "";
   };
 
@@ -125,8 +202,10 @@ export function ChatInterface() {
     const userContent = effectiveQuestion
       ? effectiveQuestion + (attachmentNames.length ? "\n\nAttached files: " + attachmentNames.join(", ") : "")
       : "Attached files: " + attachmentNames.join(", ");
+    
+    const tempMessageId = Date.now().toString(); 
     const newMessage: Message = {
-      id: Date.now().toString(),
+      id: tempMessageId,
       content: userContent,
       sender: "user",
       timestamp: new Date(),
@@ -147,71 +226,109 @@ export function ChatInterface() {
     }
 
     try {
-      const effectiveChatId = regenerateMessageId ? chatId : localStorage.getItem("chat_id");
-      const formData = new FormData();
-      formData.append("question", effectiveQuestion);
-      if (effectiveChatId) formData.append("chat_id", effectiveChatId);
-      if (user?.id) formData.append("user_id", user.id);
-      effectiveFiles.forEach((sf) => formData.append("files", sf.file));
+        let effectiveChatId = regenerateMessageId ? chatId : localStorage.getItem("chat_id");
+        
+        // 💡 FIX 4A: Session Creation (if new chat)
+        if (!effectiveChatId) {
+            const { data: newSession, error: sessionError } = await supabase
+                .from('chat_sessions')
+                .insert({ user_id: user.id })
+                .select('id')
+                .single();
+            
+            if (sessionError) throw sessionError;
+            
+            effectiveChatId = newSession.id;
+            localStorage.setItem("chat_id", effectiveChatId);
+            setChatId(effectiveChatId);
+        }
 
-      const response = await fetch("https://juristmind.onrender.com/ask", { method: "POST", body: formData });
-      if (!response.body) throw new Error("No response body from server");
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let done = false;
-      while (!done) {
-        const { value, done: doneReading } = await reader.read();
-        done = doneReading;
-        if (value) {
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n\n");
-          for (const line of lines) {
-            if (!line.startsWith("data:")) continue;
-            const dataStr = line.slice(5).trim();
-            if (dataStr === "[DONE]") { done = true; break; }
-            try {
-              const data = JSON.parse(dataStr);
-              if (data.content) {
-                setMessages((prev) => {
-                  const updated = [...prev];
-                  const last = updated.find((msg) => msg.id === aiMessageId);
-                  if (last && last.sender === "ai") last.content += data.content;
-                  return updated;
-                });
-              }
-              if (data.type === "done") {
-                done = true;
-                setIsLoading(false);
-                if (data.chat_id) { localStorage.setItem("chat_id", data.chat_id); setChatId(data.chat_id); }
-                if (data.sources) {
+        // 💡 FIX 4B: Insert User Message into Supabase
+        const { error: insertError } = await supabase
+            .from('chat_messages')
+            .insert({
+                session_id: effectiveChatId,
+                user_id: user.id,
+                content: effectiveQuestion, 
+                sender: 'user', 
+            });
+            
+        if (insertError) throw insertError;
+        
+        // --- Call External API ---
+        const formData = new FormData();
+        formData.append("question", effectiveQuestion);
+        formData.append("chat_id", effectiveChatId); 
+        if (user?.id) formData.append("user_id", user.id);
+        effectiveFiles.forEach((sf) => formData.append("files", sf.file));
+
+        const response = await fetch("https://juristmind.onrender.com/ask", { method: "POST", body: formData });
+        if (!response.body) throw new Error("No response body from server");
+        
+        // --- Streaming Logic ---
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let done = false;
+        while (!done) {
+          const { value, done: doneReading } = await reader.read();
+          done = doneReading;
+          if (value) {
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split("\n\n");
+            for (const line of lines) {
+              if (!line.startsWith("data:")) continue;
+              const dataStr = line.slice(5).trim();
+              if (dataStr === "[DONE]") { done = true; break; }
+              try {
+                const data = JSON.parse(dataStr);
+                if (data.content) {
                   setMessages((prev) => {
                     const updated = [...prev];
                     const last = updated.find((msg) => msg.id === aiMessageId);
-                    if (last && last.sender === "ai") last.sources = data.sources;
+                    if (last && last.sender === "ai") last.content += data.content;
                     return updated;
                   });
                 }
+                if (data.type === "done") {
+                  done = true;
+                  setIsLoading(false);
+                  if (data.chat_id) { 
+                    localStorage.setItem("chat_id", data.chat_id); 
+                    setChatId(data.chat_id);
+                  }
+                  if (data.sources) {
+                    setMessages((prev) => {
+                      const updated = [...prev];
+                      const last = updated.find((msg) => msg.id === aiMessageId);
+                      if (last && last.sender === "ai") last.sources = data.sources;
+                      return updated;
+                    });
+                  }
+                }
+              } catch (err) {
+                console.error("Failed to parse chunk:", err);
               }
-            } catch (err) {
-              console.error("Failed to parse chunk:", err);
             }
           }
         }
-      }
-      // clear selected files after successful send
-      setSelectedFiles((prev) => {
-        prev.forEach((sf) => { if (sf.preview) URL.revokeObjectURL(sf.preview); });
-        return [];
-      });
-      setIsLoading(false);
+        // clear selected files after successful send
+        setSelectedFiles((prev) => {
+          prev.forEach((sf) => { if (sf.preview) URL.revokeObjectURL(sf.preview); });
+          return [];
+        });
+        setIsLoading(false);
     } catch (error) {
-      console.error("Error streaming AI response:", error);
+      console.error("Error streaming AI response or Database:", error);
       setIsLoading(false);
-      toast({ title: "Error", description: "We are coming soon. Please try again.", variant: "destructive" });
+      const errorMessage = (error as Error).message.includes('Row Level Security') 
+        ? "Security Error: Your message couldn't be saved due to RLS policies. Check RLS on 'chat_sessions' and 'chat_messages'." 
+        : "An unexpected error occurred. Please try again.";
+        
+      toast({ title: "Error", description: errorMessage, variant: "destructive" });
       setMessages((prev) => {
         const updated = [...prev];
         const last = updated.find((msg) => msg.id === aiMessageId);
-        if (last && last.sender === "ai") last.content += "**Error:** Failed to stream response. Please try again.";
+        if (last && last.sender === "ai") last.content += `**Error:** Failed to stream response. (${errorMessage})`;
         return updated;
       });
     }
@@ -254,7 +371,6 @@ export function ChatInterface() {
 
   const handleRegenerate = (messageId: string) => handleSendMessage(messageId);
 
-  // Use chat.juristmind.com domain and non-.json path
   const handleShare = (messageId: string) => {
     if (!chatId) {
       toast({ title: "No chat to share", description: "Start a conversation before sharing.", variant: "warning" });
@@ -281,7 +397,7 @@ export function ChatInterface() {
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto pb-40" role="log" aria-live="polite">
         <div className="max-w-4xl mx-auto p-6">
-          {messages.length === 0 ? (
+          {messages.length === 0 && !isLoading ? (
             <div className="text-center py-20">
               <div className="inline-block glass-card glass-card--bold-edge p-8 rounded-2xl ultra-elevated max-w-2xl">
                 <h2 className="text-3xl font-extrabold glossy-heading text-foreground mb-4">Jurist Mind</h2>
@@ -349,6 +465,13 @@ export function ChatInterface() {
                   )}
                 </div>
               ))}
+              {isLoading && messages.length > 0 && (
+                 <div className="flex justify-start">
+                    <div className="glass-card p-3 max-w-2xl">
+                        <p className="text-sm text-muted">Thinking...</p>
+                    </div>
+                 </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
           )}
