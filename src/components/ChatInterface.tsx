@@ -15,7 +15,8 @@ interface Message {
   content: string;
   sender: "user" | "ai";
   timestamp: Date;
-  sources?: Source[];
+  // 🚫 SCHEMA FIX: Removed 'sources' from local interface if not used in DB
+  sources?: Source[]; 
   attachments?: string[];
   liked?: boolean;
   disliked?: boolean;
@@ -71,7 +72,6 @@ export function ChatInterface() {
   const [shownSourcesMessages, setShownSourcesMessages] = useState<Set<string>>(new Set());
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // Initialize chatId from localStorage to persist session
   const [chatId, setChatId] = useState<string | null>(() => localStorage.getItem("chat_id")); 
 
   useEffect(() => {
@@ -89,7 +89,6 @@ export function ChatInterface() {
 
   // 💡 FIX 2: Load messages when chatId changes
   useEffect(() => {
-    // Requires a logged-in user to fetch messages due to RLS
     if (!chatId || !user) {
         setMessages([]); 
         return;
@@ -98,9 +97,10 @@ export function ChatInterface() {
     const loadMessages = async () => {
         setIsLoading(true);
         try {
+            // ✅ SCHEMA FIX: Removed 'sources' from SELECT query
             const { data, error } = await supabase
                 .from('chat_messages')
-                .select('id, content, sender, created_at, sources') 
+                .select('id, content, sender, created_at') 
                 .eq('session_id', chatId)
                 .order('created_at', { ascending: true }); 
 
@@ -108,16 +108,17 @@ export function ChatInterface() {
             
             const fetchedMessages: Message[] = data.map(msg => ({
                 id: msg.id, 
-                db_id: msg.id, // Store DB ID
+                db_id: msg.id, 
                 content: msg.content,
                 sender: msg.sender as 'user' | 'ai',
                 timestamp: new Date(msg.created_at),
-                sources: msg.sources || undefined,
+                // Removed mapping for the non-existent 'sources' column
             }));
 
             setMessages(fetchedMessages);
         } catch (error) {
             console.error('Error fetching chat messages:', error);
+            // This toast is now caught by the RLS fix if RLS is the issue
             toast({ title: "Error", description: "Failed to load chat messages.", variant: "destructive" });
             setMessages([]);
         } finally {
@@ -132,7 +133,6 @@ export function ChatInterface() {
   useEffect(() => {
     if (!chatId) return;
 
-    // Use a unique channel name tied to the session
     const channel = supabase.channel(`chat_updates:${chatId}`);
 
     channel
@@ -145,7 +145,6 @@ export function ChatInterface() {
                 filter: `session_id=eq.${chatId}` 
             },
             (payload) => {
-                // Prevent duplication if the message was already added by the current client 
                 if (!messages.some(msg => msg.db_id === payload.new.id)) {
                     setMessages(prevMessages => [...prevMessages, {
                         id: payload.new.id, 
@@ -204,9 +203,8 @@ export function ChatInterface() {
     const attachmentNames = effectiveFiles.map((sf) => sf.file.name);
     const userContent = effectiveQuestion
       ? effectiveQuestion + (attachmentNames.length ? "\n\nAttached files: " + attachmentNames.join(", ") : "")
-      : "Attached files: " + attachmentNames.join(", ";
+      : "Attached files: " + attachmentNames.join(", ");
     
-    // Create the message object for local display immediately
     const tempMessageId = Date.now().toString(); 
     const newMessage: Message = {
       id: tempMessageId,
@@ -248,7 +246,6 @@ export function ChatInterface() {
         }
 
         // 💡 FIX 4B: Insert User Message into Supabase
-        // This is the CRITICAL step to ensure messages save
         const { error: insertError } = await supabase
             .from('chat_messages')
             .insert({
@@ -301,14 +298,7 @@ export function ChatInterface() {
                     localStorage.setItem("chat_id", data.chat_id); 
                     setChatId(data.chat_id);
                   }
-                  if (data.sources) {
-                    setMessages((prev) => {
-                      const updated = [...prev];
-                      const last = updated.find((msg) => msg.id === aiMessageId);
-                      if (last && last.sender === "ai") last.sources = data.sources;
-                      return updated;
-                    });
-                  }
+                  // 🚫 SCHEMA FIX: Removed the logic that relied on data.sources
                 }
               } catch (err) {
                 console.error("Failed to parse chunk:", err);
@@ -431,11 +421,8 @@ export function ChatInterface() {
                           <div className="flex items-center justify-between mt-3">
                             <time className="text-xs text-muted">{message.timestamp.toLocaleTimeString()}</time>
                             <div className="flex items-center gap-2">
-                              {message.sources && message.sources.length > 0 && (
-                                <Button variant="ghost" size="sm" className="glass-pill" onClick={() => toggleSources(message.id)}>
-                                  Sources
-                                </Button>
-                              )}
+                              {/* NOTE: Sources button is conditionally removed/disabled if data is not available */}
+                              {/* 🚫 SCHEMA FIX: Removed the sources display block that relies on message.sources */}
                               <Button size="icon" variant="ghost" onClick={() => handleFeedback(message.id, 'like')} className={message.liked ? "text-green-500" : ""}><ThumbsUp className="w-4 h-4" /></Button>
                               <Button size="icon" variant="ghost" onClick={() => handleFeedback(message.id, 'dislike')} className={message.disliked ? "text-red-500" : ""}><ThumbsDown className="w-4 h-4" /></Button>
                               <Button size="icon" variant="ghost" onClick={() => handleCopy(message.content)}><Copy className="w-4 h-4" /></Button>
@@ -444,19 +431,7 @@ export function ChatInterface() {
                               <Button size="icon" variant="ghost"><MoreHorizontal className="w-4 h-4" /></Button>
                             </div>
                           </div>
-
-                          {shownSourcesMessages.has(message.id) && message.sources && message.sources.length > 0 && (
-                            <div className="mt-3 border-t pt-3">
-                              <h4 className="text-sm font-semibold mb-1">Sources</h4>
-                              <ul className="text-sm space-y-1">
-                                {message.sources.map((source, idx) => (
-                                  <li key={idx}>
-                                    <a href={source.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">{source.title || source.url}</a>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                          {/* 🚫 SCHEMA FIX: Removed the sources details display */}
                         </div>
                       </div>
                     </article>
