@@ -282,20 +282,14 @@ export function ChatInterface() {
               if (dataStr === "[DONE]") { done = true; break; }
               try {
                 const data = JSON.parse(dataStr);
-                // keep a local accumulator so we can reliably save the final text to DB later
-aiContent += data.content || "";
-
-if (data.content) {
-  setMessages((prev) => {
-    const updated = [...prev];
-    const last = updated.find((msg) => msg.id === aiMessageId);
-    if (last && last.sender === "ai") {
-      // Mutate a copy so React sees the change
-      last.content = (last.content || "") + data.content;
-    }
-    return updated;
-  });
-}
+                if (data.content) {
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const last = updated.find((msg) => msg.id === aiMessageId);
+                    if (last && last.sender === "ai") last.content += data.content;
+                    return updated;
+                  });
+                }
                 if (data.type === "done") {
                   done = true;
                   setIsLoading(false);
@@ -312,11 +306,9 @@ if (data.content) {
           }
         }
         // --- SAVE AI MESSAGE TO SUPABASE ---
-// Use a local variable (aiContent) that we updated during streaming.
-// NOTE: we must ensure the streaming loop updates this variable (see streaming loop changes below).
-const finalAiMessage = (aiContent || "").trim();
+const finalAiMessage = messages.find((m) => m.id === aiMessageId)?.content || "";
 
-if (finalAiMessage.length > 0) {
+if (finalAiMessage.trim().length > 0) {
   const { data: insertedAi, error: aiSaveError } = await supabase
     .from("chat_messages")
     .insert({
@@ -328,7 +320,6 @@ if (finalAiMessage.length > 0) {
     .single();
 
   if (!aiSaveError && insertedAi) {
-    // Replace the temp message (aiMessageId) with the inserted record id and timestamp
     setMessages((prev) =>
       prev.map((msg) =>
         msg.id === aiMessageId
@@ -336,7 +327,6 @@ if (finalAiMessage.length > 0) {
               ...msg,
               id: insertedAi.id,
               db_id: insertedAi.id,
-              content: finalAiMessage, // ensure content is the persisted one
               timestamp: new Date(insertedAi.created_at),
             }
           : msg
@@ -347,14 +337,13 @@ if (finalAiMessage.length > 0) {
   }
 }
 
-// Clear selected files and revoke previews
+// Clear selected files
 setSelectedFiles((prev) => {
   prev.forEach((sf) => { if (sf.preview) URL.revokeObjectURL(sf.preview); });
   return [];
 });
 
 setIsLoading(false);
-
     } catch (error) {
       console.error("Error streaming AI response or Database:", error);
       setIsLoading(false);
