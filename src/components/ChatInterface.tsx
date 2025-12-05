@@ -282,14 +282,20 @@ export function ChatInterface() {
               if (dataStr === "[DONE]") { done = true; break; }
               try {
                 const data = JSON.parse(dataStr);
-                if (data.content) {
-                  setMessages((prev) => {
-                    const updated = [...prev];
-                    const last = updated.find((msg) => msg.id === aiMessageId);
-                    if (last && last.sender === "ai") last.content += data.content;
-                    return updated;
-                  });
-                }
+                // keep a local accumulator so we can reliably save the final text to DB later
+aiContent += data.content || "";
+
+if (data.content) {
+  setMessages((prev) => {
+    const updated = [...prev];
+    const last = updated.find((msg) => msg.id === aiMessageId);
+    if (last && last.sender === "ai") {
+      // Mutate a copy so React sees the change
+      last.content = (last.content || "") + data.content;
+    }
+    return updated;
+  });
+}
                 if (data.type === "done") {
                   done = true;
                   setIsLoading(false);
