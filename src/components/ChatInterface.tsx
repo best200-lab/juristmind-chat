@@ -305,12 +305,45 @@ export function ChatInterface() {
             }
           }
         }
-        // clear selected files after successful send
-        setSelectedFiles((prev) => {
-          prev.forEach((sf) => { if (sf.preview) URL.revokeObjectURL(sf.preview); });
-          return [];
-        });
-        setIsLoading(false);
+        // --- SAVE AI MESSAGE TO SUPABASE ---
+const finalAiMessage = messages.find((m) => m.id === aiMessageId)?.content || "";
+
+if (finalAiMessage.trim().length > 0) {
+  const { data: insertedAi, error: aiSaveError } = await supabase
+    .from("chat_messages")
+    .insert({
+      session_id: effectiveChatId,
+      content: finalAiMessage,
+      sender: "ai",
+    })
+    .select("id, created_at")
+    .single();
+
+  if (!aiSaveError && insertedAi) {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === aiMessageId
+          ? {
+              ...msg,
+              id: insertedAi.id,
+              db_id: insertedAi.id,
+              timestamp: new Date(insertedAi.created_at),
+            }
+          : msg
+      )
+    );
+  } else {
+    console.error("Failed to save AI message:", aiSaveError);
+  }
+}
+
+// Clear selected files
+setSelectedFiles((prev) => {
+  prev.forEach((sf) => { if (sf.preview) URL.revokeObjectURL(sf.preview); });
+  return [];
+});
+
+setIsLoading(false);
     } catch (error) {
       console.error("Error streaming AI response or Database:", error);
       setIsLoading(false);
