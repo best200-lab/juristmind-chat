@@ -306,9 +306,11 @@ export function ChatInterface() {
           }
         }
         // --- SAVE AI MESSAGE TO SUPABASE ---
-const finalAiMessage = messages.find((m) => m.id === aiMessageId)?.content || "";
+// Use a local variable (aiContent) that we updated during streaming.
+// NOTE: we must ensure the streaming loop updates this variable (see streaming loop changes below).
+const finalAiMessage = (aiContent || "").trim();
 
-if (finalAiMessage.trim().length > 0) {
+if (finalAiMessage.length > 0) {
   const { data: insertedAi, error: aiSaveError } = await supabase
     .from("chat_messages")
     .insert({
@@ -320,6 +322,7 @@ if (finalAiMessage.trim().length > 0) {
     .single();
 
   if (!aiSaveError && insertedAi) {
+    // Replace the temp message (aiMessageId) with the inserted record id and timestamp
     setMessages((prev) =>
       prev.map((msg) =>
         msg.id === aiMessageId
@@ -327,6 +330,7 @@ if (finalAiMessage.trim().length > 0) {
               ...msg,
               id: insertedAi.id,
               db_id: insertedAi.id,
+              content: finalAiMessage, // ensure content is the persisted one
               timestamp: new Date(insertedAi.created_at),
             }
           : msg
@@ -337,13 +341,14 @@ if (finalAiMessage.trim().length > 0) {
   }
 }
 
-// Clear selected files
+// Clear selected files and revoke previews
 setSelectedFiles((prev) => {
   prev.forEach((sf) => { if (sf.preview) URL.revokeObjectURL(sf.preview); });
   return [];
 });
 
 setIsLoading(false);
+
     } catch (error) {
       console.error("Error streaming AI response or Database:", error);
       setIsLoading(false);
