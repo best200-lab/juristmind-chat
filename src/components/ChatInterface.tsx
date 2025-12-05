@@ -337,7 +337,40 @@ if (finalAiMessage.trim().length > 0) {
   }
 }
 
-// Clear selected files
+// --- SAVE AI MESSAGE TO SUPABASE ---
+const finalAiMessage = messages.find((m) => m.id === aiMessageId)?.content || "";
+
+if (finalAiMessage.trim().length > 0) {
+  const { data: insertedAi, error: aiSaveError } = await supabase
+    .from("chat_messages")
+    .insert({
+      session_id: effectiveChatId,
+      content: finalAiMessage,
+      sender: "ai",
+    })
+    .select("id, created_at")
+    .single();
+
+  if (!aiSaveError && insertedAi) {
+    // Update UI so the temp aiMessageId becomes the DB ID
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === aiMessageId
+          ? {
+              ...msg,
+              id: insertedAi.id,
+              db_id: insertedAi.id,
+              timestamp: new Date(insertedAi.created_at),
+            }
+          : msg
+      )
+    );
+  } else {
+    console.error("Failed to save AI message:", aiSaveError);
+  }
+}
+
+// 🧹 Clear selected files after success
 setSelectedFiles((prev) => {
   prev.forEach((sf) => { if (sf.preview) URL.revokeObjectURL(sf.preview); });
   return [];
