@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 
 const plans = [
   {
-    name: "Basic",
+    name: "Student",
     price: "₦15,000",
     period: "/month",
     description: "Perfect for solo practitioners",
