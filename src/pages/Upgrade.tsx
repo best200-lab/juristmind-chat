@@ -6,11 +6,13 @@ import { usePaystackPayment } from "react-paystack";
 import { createClient } from "@supabase/supabase-js";
 import { toast } from "sonner"; 
 
-// Initialize Supabase to get the User ID
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+// --- 1. IMPORT KEYS FROM YOUR .ENV FILE ---
+// I updated these lines to match the file you showed me exactly.
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+// Initialize Supabase
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function Upgrade() {
   const [user, setUser] = useState<any>(null);
@@ -18,7 +20,13 @@ export default function Upgrade() {
 
   // 1. Get the current user on load
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    const getUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user) {
+        setUser(data.user);
+      }
+    };
+    getUser();
   }, []);
 
   // 2. Configuration for STUDENT Plan specifically
@@ -26,11 +34,12 @@ export default function Upgrade() {
     reference: (new Date()).getTime().toString(),
     email: user?.email || "",
     amount: 15000 * 100, // ₦15,000 in Kobo
-    publicKey: "pk_test_9ae5352493ce583348ed61f75aff6077ed40e965", // REPLACE WITH YOUR PAYSTACK KEY
+    // ⚠️ REPLACE THIS WITH YOUR PAYSTACK PUBLIC KEY
+    publicKey: "pk_test_xxxxxxxxxxxxxxxxxxxx", 
     metadata: {
       custom_fields: [
         { display_name: "User ID", variable_name: "user_id", value: user?.id },
-        { display_name: "Plan Key", variable_name: "plan_key", value: "student_monthly" } // MATCHES DB
+        { display_name: "Plan Key", variable_name: "plan_key", value: "student_monthly" } 
       ]
     }
   };
@@ -64,7 +73,7 @@ export default function Upgrade() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           
-          {/* --- STUDENT PLAN (ACTIVE) --- */}
+          {/* --- STUDENT PLAN --- */}
           <Card className="relative hover:shadow-lg transition-shadow">
             <CardHeader className="text-center pb-8">
               <div className="mx-auto mb-4 w-12 h-12 bg-gradient-primary rounded-lg flex items-center justify-center">
@@ -83,8 +92,6 @@ export default function Upgrade() {
                 <li className="flex items-center gap-3"><Check className="w-5 h-5 text-primary" /><span className="text-sm">Basic legal templates</span></li>
                 <li className="flex items-center gap-3"><Check className="w-5 h-5 text-primary" /><span className="text-sm">Email support</span></li>
               </ul>
-              
-              {/* ACTIVE PAYMENT BUTTON */}
               <Button 
                 className="w-full" 
                 variant="outline"
@@ -96,7 +103,7 @@ export default function Upgrade() {
             </CardContent>
           </Card>
 
-          {/* --- OTHER PLANS (VISUAL ONLY FOR NOW) --- */}
+          {/* --- OTHER PLANS --- */}
           <Card className="relative border-primary shadow-lg">
              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <span className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium">Most Popular</span>
