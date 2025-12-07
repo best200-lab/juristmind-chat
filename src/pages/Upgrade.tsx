@@ -7,13 +7,11 @@ import { createClient } from "@supabase/supabase-js";
 import { toast } from "sonner"; 
 
 // --- 1. SETUP SUPABASE ---
-// We try to load from .env first.
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 let supabase: any = null;
 
-// Safety Check: Only initialize if keys exist
 if (supabaseUrl && supabaseKey) {
   supabase = createClient(supabaseUrl, supabaseKey);
 } else {
@@ -24,22 +22,30 @@ export default function Upgrade() {
   const [user, setUser] = useState<any>(null);
   const [processing, setProcessing] = useState(false);
 
-  // 2. Get User (Only if Supabase is working)
+  // 2. Get User
   useEffect(() => {
     if (supabase) {
       supabase.auth.getUser().then(({ data }: any) => {
-        if (data?.user) setUser(data.user);
+        if (data?.user) {
+            console.log("User loaded:", data.user.id); // Debug log
+            setUser(data.user);
+        }
       });
     }
   }, []);
 
-  // 3. Student Plan Configuration
+  // 3. Student Plan Configuration (CORRECTED)
   const studentConfig = {
     reference: (new Date()).getTime().toString(),
     email: user?.email || "",
     amount: 15000 * 100, // ₦15,000 in Kobo
     publicKey: "pk_test_9ae5352493ce583348ed61f75aff6077ed40e965", 
     metadata: {
+      // 👇 FIX 1: These must be at the top level of metadata
+      user_id: user?.id,
+      plan_key: "student_monthly",
+      
+      // Optional: Keep custom_fields for Paystack Dashboard display
       custom_fields: [
         { display_name: "User ID", variable_name: "user_id", value: user?.id },
         { display_name: "Plan Key", variable_name: "plan_key", value: "student_monthly" } 
@@ -58,6 +64,10 @@ export default function Upgrade() {
       toast.error("Please log in first");
       return;
     }
+    
+    // Safety check before launching payment
+    console.log("Launching payment with User ID:", user.id);
+    
     setProcessing(true);
     initializePayment({
       onSuccess: () => {
@@ -106,10 +116,11 @@ export default function Upgrade() {
               <Button 
                 className="w-full" 
                 variant="outline"
-                disabled={processing}
+                // 👇 FIX 2: Disable button if User is not loaded yet
+                disabled={processing || !user}
                 onClick={handleStudentPayment}
               >
-                {processing ? <Loader2 className="animate-spin" /> : "Choose Plan"}
+                {processing ? <Loader2 className="animate-spin" /> : (!user ? "Loading User..." : "Choose Plan")}
               </Button>
             </CardContent>
           </Card>
