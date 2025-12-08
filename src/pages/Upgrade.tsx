@@ -6,10 +6,10 @@ import { createClient } from "@supabase/supabase-js";
 import { toast } from "sonner"; 
 import PaystackPop from "@paystack/inline-js";
 
-// --- 1. SETUP SUPABASE (Outside component to fix warning) ---
+// --- 1. SETUP SUPABASE ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-// Initialize once
+// Initialize once to prevent "Multiple Instances" warning
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
 export default function Upgrade() {
@@ -18,7 +18,7 @@ export default function Upgrade() {
   const [loading, setLoading] = useState(true);
   const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
   
-  // Track which plan is currently active (using the 'plan_key' string)
+  // Stores the ACTIVE plan key (e.g. "student_monthly", "monthly", "yearly")
   const [activePlanKey, setActivePlanKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,8 +36,8 @@ export default function Upgrade() {
         if (currentUser) {
           setUser(currentUser);
 
-          // B. Get Active Subscription (FIXED COLUMN NAME)
-          // We select "plan" because that is the column name in your table screenshot
+          // B. Get Active Subscription (UNIVERSAL FIX)
+          // We fetch the 'plan' column (text) which matches 'plan_key' in the plans table
           const { data: subData, error } = await supabase
             .from("subscriptions")
             .select("plan") 
@@ -47,13 +47,9 @@ export default function Upgrade() {
             .limit(1)
             .maybeSingle();
 
-          if (error) {
-            console.error("Error fetching sub:", error);
-          } 
-          
           if (subData) {
-            console.log("✅ Found Active Plan:", subData.plan);
-            setActivePlanKey(subData.plan);
+            console.log("✅ Active Plan Key Found:", subData.plan);
+            setActivePlanKey(subData.plan); // This works for ANY plan name
           }
         }
 
@@ -66,7 +62,7 @@ export default function Upgrade() {
 
         if (error) throw error;
 
-        // Custom sort
+        // Custom sort order
         const order = ['student_monthly', 'monthly', 'yearly', 'enterprise'];
         const sortedData = plansData?.sort((a: any, b: any) => order.indexOf(a.plan_key) - order.indexOf(b.plan_key));
         setPlans(sortedData || []);
@@ -156,7 +152,9 @@ export default function Upgrade() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             {plans.map((plan) => {
-              // FIX: Compare the text keys (e.g. "yearly" === "yearly")
+              // UNIVERSAL CHECK:
+              // This compares the string from your subscription (e.g. 'student_monthly')
+              // with the string from the plan card (e.g. 'student_monthly').
               const isCurrentPlan = activePlanKey === plan.plan_key;
 
               return (
