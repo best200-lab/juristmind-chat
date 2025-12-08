@@ -58,7 +58,7 @@ export default function Upgrade() {
     }
   }, []);
 
-  // 3. Handle Payment (Auto-Renewal)
+  // 3. Handle Payment (Auto-Renewal + Metadata Fix)
   const handleSubscribe = async (plan: any) => {
     if (!user) {
       toast.error("Please log in first");
@@ -81,13 +81,24 @@ export default function Upgrade() {
 
     const paystack = new PaystackPop();
     paystack.newTransaction({
-      key: "pk_test_9ae5352493ce583348ed61f75aff6077ed40e965", // YOUR PUBLIC KEY
+      // Using the key from your previous code snippet
+      key: "pk_test_9ae5352493ce583348ed61f75aff6077ed40e965", 
       email: user.email,
       amount: plan.price_ngn * 100, // Amount in Kobo
       plan: plan.paystack_plan_id, // <--- ENABLES AUTO-RENEWAL
       
+      // 👇 IMPORTANT FIX: This ensures your backend knows WHO paid and for WHAT
+      metadata: {
+        user_id: user.id,
+        plan_key: plan.plan_key,
+        custom_fields: [
+          { display_name: "User ID", variable_name: "user_id", value: user.id },
+          { display_name: "Plan Key", variable_name: "plan_key", value: plan.plan_key }
+        ]
+      },
+      
       onSuccess: async (transaction: any) => {
-        // 4. Record Subscription in DB
+        // 4. Record Subscription in DB (Optimistic Update)
         const { error } = await supabase.from("subscriptions").insert({
           user_id: user.id,
           plan_id: plan.id,
@@ -99,7 +110,8 @@ export default function Upgrade() {
 
         if (error) {
           console.error("DB Error:", error);
-          toast.error("Payment successful but database update failed. Contact support.");
+          // Even if DB insert fails here, the Webhook should catch it later because we fixed the metadata
+          toast.error("Payment successful but local update failed. Please refresh.");
         } else {
           toast.success(`Success! You are now on the ${plan.name}.`);
           setTimeout(() => window.location.reload(), 1500); // Refresh to apply changes
