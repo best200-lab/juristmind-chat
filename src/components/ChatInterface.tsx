@@ -193,15 +193,34 @@ export function ChatInterface() {
       return;
     }
 
-    // Check if user can make request (usage limits)
+    // --- NEW GATEKEEPER CHECK START ---
     try {
-      const { data: usageCheck, error: usageError } = await supabase.functions.invoke('check-ai-usage');
+      // Calls the new SQL function that Checks Limits AND Increments usage in one step
+      const { data: usageCheck, error: usageError } = await supabase.rpc('check_and_increment_usage');
       
-      if (usageError || !usageCheck?.allowed) {
-        const reason = usageCheck?.reason || 'Usage limit reached';
+      if (usageError) {
+        console.error("Gatekeeper Error:", usageError);
+        throw usageError;
+      }
+
+      if (usageCheck && usageCheck.allowed === false) {
+        let title = "Usage Limit Reached";
+        let description = "Please upgrade your plan.";
+
+        if (usageCheck.reason === 'expired') {
+            title = "Free Trial Expired";
+            description = "Your 3-day free trial has ended. Please upgrade to continue accessing Jurist Mind.";
+        } else if (usageCheck.reason === 'daily_limit_reached') {
+            title = "Daily Limit Reached";
+            description = "You have used all your free requests for today. Come back tomorrow or upgrade for more.";
+        } else if (usageCheck.reason === 'no_subscription') {
+            title = "No Subscription";
+            description = "We could not find an active subscription for your account.";
+        }
+
         toast({
-          title: "Usage Limit Reached",
-          description: `${reason} - Upgrade your plan to continue!`,
+          title: title,
+          description: description,
           variant: "destructive",
           action: (
             <Button
@@ -213,15 +232,17 @@ export function ChatInterface() {
             </Button>
           ),
         });
-        return;
+        return; // STOP EXECUTION HERE
       }
 
-      if (usageCheck.requests_remaining > 0 && usageCheck.requests_remaining < 10) {
-        toast({
+      // Show warning if close to limit (Optional UX improvement)
+      if (usageCheck.limit && (usageCheck.limit - usageCheck.requests_used) <= 2) {
+         toast({
           title: "Usage Notice",
-          description: `You have ${usageCheck.requests_remaining} requests remaining today`,
+          description: `You have ${usageCheck.limit - usageCheck.requests_used} requests remaining today.`,
         });
       }
+
     } catch (error) {
       console.error('Error checking usage:', error);
       toast({
@@ -231,6 +252,7 @@ export function ChatInterface() {
       });
       return;
     }
+    // --- NEW GATEKEEPER CHECK END ---
 
     let sessionId = currentSessionId;
     
@@ -375,14 +397,8 @@ export function ChatInterface() {
         }
       }
       
-      // Increment usage count
-      try {
-        await supabase.functions.invoke('increment-ai-usage', {
-          body: { points: 1 }
-        });
-      } catch (error) {
-        console.error('Error incrementing usage:', error);
-      }
+      // REMOVED: Old 'increment-ai-usage' call.
+      // The RPC 'check_and_increment_usage' at the top already handled counting.
       
     } catch (error) {
       console.error('Error calling AI:', error);
