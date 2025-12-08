@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@supabase/supabase-js";
 import { toast } from "sonner"; 
 import PaystackPop from "@paystack/inline-js";
+import { useNavigate } from "react-router-dom"; // 👈 1. Import this
 
 // --- 1. SETUP SUPABASE ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -13,11 +14,12 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
 export default function Upgrade() {
+  const navigate = useNavigate(); // 👈 2. Initialize hook
   const [user, setUser] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
-  
+   
   // Stores the ACTIVE plan key (e.g. "student_monthly", "monthly", "yearly")
   const [activePlanKey, setActivePlanKey] = useState<string | null>(null);
 
@@ -79,13 +81,14 @@ export default function Upgrade() {
   }, []);
 
   const handleSubscribe = async (plan: any) => {
-    if (!user) {
-      toast.error("Please log in first");
+    // 👈 3. Updated Logic for Enterprise
+    if (plan.plan_key === 'enterprise') {
+      navigate('/contact-sales'); 
       return;
     }
 
-    if (plan.plan_key === 'enterprise') {
-      window.location.href = "mailto:sales@juristmind.com?subject=Enterprise Inquiry";
+    if (!user) {
+      toast.error("Please log in first");
       return;
     }
 
@@ -222,7 +225,7 @@ export default function Upgrade() {
                           ? 'default' 
                           : (plan.plan_key === 'enterprise' ? 'default' : (plan.plan_key === 'yearly' ? 'default' : 'outline'))
                       }
-                      disabled={isCurrentPlan || (processingPlanId !== null && processingPlanId !== plan.id) || !user}
+                      disabled={isCurrentPlan || (processingPlanId !== null && processingPlanId !== plan.id)}
                       onClick={() => !isCurrentPlan && handleSubscribe(plan)}
                     >
                       {processingPlanId === plan.id ? (
