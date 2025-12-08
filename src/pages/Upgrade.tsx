@@ -100,11 +100,13 @@ export default function Upgrade() {
 
     const paystack = new PaystackPop();
     paystack.newTransaction({
+      // Your Public Key
       key: "pk_test_9ae5352493ce583348ed61f75aff6077ed40e965", 
       email: user.email,
-      amount: plan.price_ngn * 100,
-      plan: plan.paystack_plan_id,
+      amount: plan.price_ngn * 100, // Amount in Kobo
+      plan: plan.paystack_plan_id, // Auto-renewal ID
       
+      // Metadata to ensure Webhook knows WHO paid
       metadata: {
         user_id: user.id,
         plan_key: plan.plan_key,
@@ -115,11 +117,15 @@ export default function Upgrade() {
       },
       
       onSuccess: async (transaction: any) => {
+        // Success! We trust the webhook to handle the DB update.
         toast.success(`Payment Successful! Switching to ${plan.name}...`);
+        
         setProcessingPlanId(null);
+        
+        // Wait 2.5 seconds for the webhook to finish, then reload
         setTimeout(() => {
             window.location.reload();
-        }, 2000);
+        }, 2500);
       },
       
       onCancel: () => {
@@ -161,7 +167,7 @@ export default function Upgrade() {
                 <Card 
                   key={plan.id} 
                   className={`relative hover:shadow-lg transition-shadow flex flex-col ${
-                    // Highlight the border if it's the current plan OR the "Best Value" (Yearly)
+                    // Highlight the border if it's the current plan
                     isCurrentPlan 
                       ? 'border-green-500 ring-1 ring-green-500 shadow-md bg-green-50/10' 
                       : (plan.plan_key === 'yearly' ? 'border-primary ring-1 ring-primary shadow-md' : '')
