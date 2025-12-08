@@ -24,7 +24,7 @@ export default function Upgrade() {
   const [loading, setLoading] = useState(true);
   const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
   
-  // New State: To track which plan is currently active
+  // Track which plan is currently active
   const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
 
   // 2. Get User, Plans, AND Active Subscription
@@ -39,14 +39,16 @@ export default function Upgrade() {
           if (currentUser) {
             setUser(currentUser);
 
-            // B. Get Active Subscription for this User
-            // We check for 'active' status to see what they are currently on
+            // B. Get Active Subscription (FIXED LOGIC)
+            // We order by 'created_at' descending to get the NEWEST active plan
             const { data: subData } = await supabase
               .from("subscriptions")
               .select("plan_id")
               .eq("user_id", currentUser.id)
               .eq("status", "active")
-              .maybeSingle(); // Use maybeSingle() to avoid errors if no sub exists
+              .order("created_at", { ascending: false }) // Prioritize newest
+              .limit(1)
+              .maybeSingle();
 
             if (subData) {
               setCurrentPlanId(subData.plan_id);
@@ -117,7 +119,6 @@ export default function Upgrade() {
       },
       
       onSuccess: async (transaction: any) => {
-        // Success! We trust the webhook to handle the DB update.
         toast.success(`Payment Successful! Switching to ${plan.name}...`);
         
         setProcessingPlanId(null);
