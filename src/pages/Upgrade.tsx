@@ -32,26 +32,34 @@ export default function Upgrade() {
     if (supabase) {
       const loadData = async () => {
         try {
+          console.log("🔄 Starting Data Load...");
+
           // A. Get User
           const { data: userData } = await supabase.auth.getUser();
           const currentUser = userData?.user;
           
           if (currentUser) {
+            console.log("✅ User Found:", currentUser.id);
             setUser(currentUser);
 
-            // B. Get Active Subscription (FIXED LOGIC)
-            // We order by 'created_at' descending to get the NEWEST active plan
-            const { data: subData } = await supabase
+            // B. Get Active Subscription (DEBUGGING ADDED)
+            const { data: subData, error: subError } = await supabase
               .from("subscriptions")
-              .select("plan_id")
+              .select("*") // Selecting ALL columns to debug
               .eq("user_id", currentUser.id)
-              .eq("status", "active")
-              .order("created_at", { ascending: false }) // Prioritize newest
+              .eq("status", "active") // Make sure your DB status is lowercase 'active'
+              .order("created_at", { ascending: false })
               .limit(1)
               .maybeSingle();
 
-            if (subData) {
+            if (subError) {
+              console.error("❌ Subscription Fetch Error:", subError);
+            } else if (subData) {
+              console.log("✅ Active Subscription Found:", subData);
+              console.log("👉 Sub Plan ID:", subData.plan_id);
               setCurrentPlanId(subData.plan_id);
+            } else {
+              console.warn("⚠️ No Active Subscription found for this user.");
             }
           }
 
@@ -59,12 +67,18 @@ export default function Upgrade() {
           const { data: plansData, error } = await supabase
             .from("plans")
             .select("*")
-            .neq('plan_key', 'free') // Hide Free plan from list
+            .neq('plan_key', 'free') 
             .order("price_ngn", { ascending: true });
 
           if (error) throw error;
+          
+          if (plansData) {
+             console.log("✅ Plans Loaded:", plansData.length);
+             // Log IDs to compare with subscription
+             plansData.forEach(p => console.log(`Plan: ${p.name}, ID: ${p.id}`));
+          }
 
-          // Custom sort: Student -> Monthly -> Yearly -> Enterprise
+          // Custom sort
           const order = ['student_monthly', 'monthly', 'yearly', 'enterprise'];
           const sortedData = plansData?.sort((a: any, b: any) => order.indexOf(a.plan_key) - order.indexOf(b.plan_key));
           setPlans(sortedData || []);
@@ -102,13 +116,11 @@ export default function Upgrade() {
 
     const paystack = new PaystackPop();
     paystack.newTransaction({
-      // Your Public Key
       key: "pk_test_9ae5352493ce583348ed61f75aff6077ed40e965", 
       email: user.email,
-      amount: plan.price_ngn * 100, // Amount in Kobo
-      plan: plan.paystack_plan_id, // Auto-renewal ID
+      amount: plan.price_ngn * 100,
+      plan: plan.paystack_plan_id,
       
-      // Metadata to ensure Webhook knows WHO paid
       metadata: {
         user_id: user.id,
         plan_key: plan.plan_key,
@@ -120,10 +132,7 @@ export default function Upgrade() {
       
       onSuccess: async (transaction: any) => {
         toast.success(`Payment Successful! Switching to ${plan.name}...`);
-        
         setProcessingPlanId(null);
-        
-        // Wait 2.5 seconds for the webhook to finish, then reload
         setTimeout(() => {
             window.location.reload();
         }, 2500);
@@ -161,20 +170,18 @@ export default function Upgrade() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             {plans.map((plan) => {
-              // Check if this card represents the user's current plan
+              // DEBUG: Check which plan is matching
               const isCurrentPlan = currentPlanId === plan.id;
-
+              
               return (
                 <Card 
                   key={plan.id} 
                   className={`relative hover:shadow-lg transition-shadow flex flex-col ${
-                    // Highlight the border if it's the current plan
                     isCurrentPlan 
                       ? 'border-green-500 ring-1 ring-green-500 shadow-md bg-green-50/10' 
                       : (plan.plan_key === 'yearly' ? 'border-primary ring-1 ring-primary shadow-md' : '')
                   }`}
                 >
-                  {/* Badge logic */}
                   {isCurrentPlan ? (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                       <span className="bg-green-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1">
@@ -218,11 +225,10 @@ export default function Upgrade() {
                       ))}
                     </ul>
 
-                    {/* BUTTON LOGIC */}
                     <Button 
                       className={`w-full ${
                         isCurrentPlan 
-                          ? 'bg-green-600 hover:bg-green-700 opacity-100 cursor-default' // Style for Current Plan
+                          ? 'bg-green-600 hover:bg-green-700 opacity-100 cursor-default' 
                           : plan.plan_key === 'enterprise' 
                             ? 'bg-slate-800 hover:bg-slate-700' 
                             : ''
@@ -232,7 +238,6 @@ export default function Upgrade() {
                           ? 'default' 
                           : (plan.plan_key === 'enterprise' ? 'default' : (plan.plan_key === 'yearly' ? 'default' : 'outline'))
                       }
-                      // Disable button if it's the current plan OR if processing another payment
                       disabled={isCurrentPlan || (processingPlanId !== null && processingPlanId !== plan.id) || !user}
                       onClick={() => !isCurrentPlan && handleSubscribe(plan)}
                     >
