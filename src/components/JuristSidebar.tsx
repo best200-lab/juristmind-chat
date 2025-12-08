@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, MessageCircle, Scale, History, Menu, X, User, ShoppingBag, Briefcase, FileText, BookOpen, FolderOpen, Crown } from "lucide-react";
+import { Search, MessageCircle, Scale, History, User, ShoppingBag, Briefcase, FileText, BookOpen, FolderOpen, Crown } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -10,12 +10,11 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { ChatHistory } from "@/components/ChatHistory";
-import { UsageDashboard } from "@/components/UsageDashboard"; // <--- Import Dashboard
+import { UsageDashboard } from "@/components/UsageDashboard";
 
 const navigationItems = [
   { title: "Search", url: "/search", icon: Search },
@@ -52,9 +51,7 @@ export function JuristSidebar() {
 
   const handleNewChat = () => {
     setCurrentSessionId(null);
-    // Clear URL params and navigate to fresh chat
     navigate('/', { replace: true });
-    // Dispatch custom event to notify ChatInterface
     window.dispatchEvent(new CustomEvent('newChat'));
   };
 
@@ -67,9 +64,12 @@ export function JuristSidebar() {
           {/* Logo Section */}
           <div className="p-4 border-b border-sidebar-border sticky top-0 bg-sidebar z-10">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-                <Scale className="w-5 h-5 text-primary-foreground" />
-              </div>
+              <img 
+                src="https://asmostaidymrcesixebq.supabase.co/storage/v1/object/public/asset/juristlogo.png" 
+                alt="Jurist Mind Logo" 
+                className="w-8 h-8 object-contain" 
+              />
+              
               {!collapsed && (
                 <div>
                   <h1 className="text-lg font-bold text-sidebar-foreground">JURIST</h1>
