@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,6 +23,8 @@ import Upgrade from "./pages/Upgrade";
 import NotFound from "./pages/NotFound";
 import Terms from "./pages/Terms";
 import Profile from "./pages/Profile";
+// 👇 1. IMPORT THE NEW PAGE
+import ContactSales from "./pages/ContactSales";
 
 const queryClient = new QueryClient();
 
@@ -35,9 +36,11 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Unauthenticated routes */}
+            {/* Unauthenticated / Standalone routes */}
             <Route path="/auth" element={<Auth />} />
             <Route path="/terms" element={<Terms />} />
+            {/* 👇 2. ADD THE ROUTE HERE */}
+            <Route path="/contact-sales" element={<ContactSales />} />
             
             {/* All other routes are protected with sidebar */}
             <Route path="/*" element={
