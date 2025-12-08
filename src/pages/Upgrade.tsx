@@ -6,17 +6,11 @@ import { createClient } from "@supabase/supabase-js";
 import { toast } from "sonner"; 
 import PaystackPop from "@paystack/inline-js";
 
-// --- 1. SETUP SUPABASE ---
+// --- 1. SETUP SUPABASE (Outside component to fix warning) ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-let supabase: any = null;
-
-if (supabaseUrl && supabaseKey) {
-  supabase = createClient(supabaseUrl, supabaseKey);
-} else {
-  console.error("⚠️ Supabase Keys missing! Check your .env file and RESTART the server.");
-}
+// Initialize once
+const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
 export default function Upgrade() {
   const [user, setUser] = useState<any>(null);
@@ -24,78 +18,70 @@ export default function Upgrade() {
   const [loading, setLoading] = useState(true);
   const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
   
-  // Track which plan is currently active
-  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
+  // Track which plan is currently active (using the 'plan_key' string)
+  const [activePlanKey, setActivePlanKey] = useState<string | null>(null);
 
-  // 2. Get User, Plans, AND Active Subscription
   useEffect(() => {
-    if (supabase) {
-      const loadData = async () => {
-        try {
-          console.log("🔄 Starting Data Load...");
-
-          // A. Get User
-          const { data: userData } = await supabase.auth.getUser();
-          const currentUser = userData?.user;
-          
-          if (currentUser) {
-            console.log("✅ User Found:", currentUser.id);
-            setUser(currentUser);
-
-            // B. Get Active Subscription (DEBUGGING ADDED)
-            const { data: subData, error: subError } = await supabase
-              .from("subscriptions")
-              .select("*") // Selecting ALL columns to debug
-              .eq("user_id", currentUser.id)
-              .eq("status", "active") // Make sure your DB status is lowercase 'active'
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
-
-            if (subError) {
-              console.error("❌ Subscription Fetch Error:", subError);
-            } else if (subData) {
-              console.log("✅ Active Subscription Found:", subData);
-              console.log("👉 Sub Plan ID:", subData.plan_id);
-              setCurrentPlanId(subData.plan_id);
-            } else {
-              console.warn("⚠️ No Active Subscription found for this user.");
-            }
-          }
-
-          // C. Get All Plans
-          const { data: plansData, error } = await supabase
-            .from("plans")
-            .select("*")
-            .neq('plan_key', 'free') 
-            .order("price_ngn", { ascending: true });
-
-          if (error) throw error;
-          
-          if (plansData) {
-             console.log("✅ Plans Loaded:", plansData.length);
-             // Log IDs to compare with subscription
-             plansData.forEach(p => console.log(`Plan: ${p.name}, ID: ${p.id}`));
-          }
-
-          // Custom sort
-          const order = ['student_monthly', 'monthly', 'yearly', 'enterprise'];
-          const sortedData = plansData?.sort((a: any, b: any) => order.indexOf(a.plan_key) - order.indexOf(b.plan_key));
-          setPlans(sortedData || []);
-
-        } catch (error) {
-          console.error("Error loading data:", error);
-          toast.error("Failed to load plan info");
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      loadData();
+    if (!supabase) {
+      console.error("⚠️ Supabase Keys missing!");
+      return;
     }
+
+    const loadData = async () => {
+      try {
+        // A. Get User
+        const { data: userData } = await supabase.auth.getUser();
+        const currentUser = userData?.user;
+        
+        if (currentUser) {
+          setUser(currentUser);
+
+          // B. Get Active Subscription (FIXED COLUMN NAME)
+          // We select "plan" because that is the column name in your table screenshot
+          const { data: subData, error } = await supabase
+            .from("subscriptions")
+            .select("plan") 
+            .eq("user_id", currentUser.id)
+            .eq("status", "active")
+            .order("created_at", { ascending: false }) 
+            .limit(1)
+            .maybeSingle();
+
+          if (error) {
+            console.error("Error fetching sub:", error);
+          } 
+          
+          if (subData) {
+            console.log("✅ Found Active Plan:", subData.plan);
+            setActivePlanKey(subData.plan);
+          }
+        }
+
+        // C. Get All Plans
+        const { data: plansData, error } = await supabase
+          .from("plans")
+          .select("*")
+          .neq('plan_key', 'free') 
+          .order("price_ngn", { ascending: true });
+
+        if (error) throw error;
+
+        // Custom sort
+        const order = ['student_monthly', 'monthly', 'yearly', 'enterprise'];
+        const sortedData = plansData?.sort((a: any, b: any) => order.indexOf(a.plan_key) - order.indexOf(b.plan_key));
+        setPlans(sortedData || []);
+
+      } catch (error) {
+        console.error("Error loading data:", error);
+        toast.error("Failed to load plan info");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
-  // 3. Handle Payment
   const handleSubscribe = async (plan: any) => {
     if (!user) {
       toast.error("Please log in first");
@@ -170,9 +156,9 @@ export default function Upgrade() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             {plans.map((plan) => {
-              // DEBUG: Check which plan is matching
-              const isCurrentPlan = currentPlanId === plan.id;
-              
+              // FIX: Compare the text keys (e.g. "yearly" === "yearly")
+              const isCurrentPlan = activePlanKey === plan.plan_key;
+
               return (
                 <Card 
                   key={plan.id} 
