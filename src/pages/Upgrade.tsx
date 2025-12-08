@@ -58,7 +58,7 @@ export default function Upgrade() {
     }
   }, []);
 
-  // 3. Handle Payment (Auto-Renewal + Metadata Fix)
+  // 3. Handle Payment (Auto-Renewal + Webhook Reliance)
   const handleSubscribe = async (plan: any) => {
     if (!user) {
       toast.error("Please log in first");
@@ -81,13 +81,13 @@ export default function Upgrade() {
 
     const paystack = new PaystackPop();
     paystack.newTransaction({
-      // Using the key from your previous code snippet
+      // Your Public Key
       key: "pk_test_9ae5352493ce583348ed61f75aff6077ed40e965", 
       email: user.email,
       amount: plan.price_ngn * 100, // Amount in Kobo
       plan: plan.paystack_plan_id, // <--- ENABLES AUTO-RENEWAL
       
-      // 👇 IMPORTANT FIX: This ensures your backend knows WHO paid and for WHAT
+      // 👇 Metadata ensures backend knows WHO paid
       metadata: {
         user_id: user.id,
         plan_key: plan.plan_key,
@@ -98,26 +98,18 @@ export default function Upgrade() {
       },
       
       onSuccess: async (transaction: any) => {
-        // 4. Record Subscription in DB (Optimistic Update)
-        const { error } = await supabase.from("subscriptions").insert({
-          user_id: user.id,
-          plan_id: plan.id,
-          status: "active",
-          paystack_reference: transaction.reference,
-          // Set expiry based on plan duration (30 days or 365 days)
-          current_period_end: new Date(Date.now() + plan.duration_days * 24 * 60 * 60 * 1000).toISOString(),
-        });
-
-        if (error) {
-          console.error("DB Error:", error);
-          // Even if DB insert fails here, the Webhook should catch it later because we fixed the metadata
-          toast.error("Payment successful but local update failed. Please refresh.");
-        } else {
-          toast.success(`Success! You are now on the ${plan.name}.`);
-          setTimeout(() => window.location.reload(), 1500); // Refresh to apply changes
-        }
+        // ✅ SIMPLIFIED: Trust the Webhook.
+        // We know the payment succeeded. We just wait for the backend to sync.
+        toast.success(`Payment Successful! Activating ${plan.name}...`);
+        
         setProcessingPlanId(null);
+        
+        // Wait 2 seconds for the webhook to finish DB updates, then reload page
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
       },
+      
       onCancel: () => {
         setProcessingPlanId(null);
         toast.info("Transaction cancelled");
