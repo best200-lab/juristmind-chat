@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { NavLink } from "react-router-dom";
 import { SourceDisplay } from "@/components/SourceDisplay";
+import ReactMarkdown from "react-markdown"; // Import React Markdown
 
 interface Message {
   id: string;
@@ -14,7 +15,7 @@ interface Message {
   sender: "user" | "ai";
   timestamp: Date;
   sources?: string[];
-  db_id?: string; // Track database ID for persisted messages
+  db_id?: string;
 }
 
 export function ChatInterface() {
@@ -31,10 +32,9 @@ export function ChatInterface() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Load session from URL or most recent session on mount
+  // Load session logic...
   useEffect(() => {
     if (!user) return;
-    
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('session');
     
@@ -45,7 +45,7 @@ export function ChatInterface() {
     }
   }, [user]);
 
-  // Listen for new chat event from sidebar
+  // Listen for new chat event...
   useEffect(() => {
     const handleNewChatEvent = () => {
       setMessages([]);
@@ -56,7 +56,7 @@ export function ChatInterface() {
     return () => window.removeEventListener('newChat', handleNewChatEvent);
   }, []);
 
-  // Realtime subscription for new messages
+  // Realtime subscription...
   useEffect(() => {
     if (!currentSessionId) return;
 
@@ -72,7 +72,6 @@ export function ChatInterface() {
         },
         (payload) => {
           const newMsg = payload.new as any;
-          // Only add if we don't already have this message (by db_id)
           setMessages(prev => {
             if (prev.some(msg => msg.db_id === newMsg.id)) {
               return prev;
@@ -96,7 +95,6 @@ export function ChatInterface() {
 
   const loadMostRecentSession = async () => {
     if (!user) return;
-    
     try {
       const { data, error } = await supabase
         .from('chat_sessions')
@@ -107,10 +105,7 @@ export function ChatInterface() {
         .maybeSingle();
 
       if (error) throw error;
-      
-      if (data) {
-        await loadSession(data.id);
-      }
+      if (data) await loadSession(data.id);
     } catch (error) {
       console.error('Error loading recent session:', error);
     }
@@ -118,14 +113,10 @@ export function ChatInterface() {
 
   const createNewSession = async () => {
     if (!user) return null;
-    
     try {
       const { data, error } = await supabase
         .from('chat_sessions')
-        .insert({
-          user_id: user.id,
-          title: 'New Chat'
-        })
+        .insert({ user_id: user.id, title: 'New Chat' })
         .select()
         .single();
         
@@ -141,23 +132,17 @@ export function ChatInterface() {
     try {
       const { data, error } = await supabase
         .from('chat_messages')
-        .insert({
-          session_id: sessionId,
-          content,
-          sender
-        })
+        .insert({ session_id: sessionId, content, sender })
         .select('id, created_at')
         .single();
       
       if (error) throw error;
       
-      // Update session's updated_at timestamp
       await supabase
         .from('chat_sessions')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', sessionId);
         
-      console.log('Message saved successfully:', sender, content.substring(0, 50), 'ID:', data?.id);
       return data?.id || null;
     } catch (error) {
       console.error('Error saving message:', error);
@@ -173,10 +158,7 @@ export function ChatInterface() {
   const updateSessionTitle = async (sessionId: string, firstMessage: string) => {
     const title = firstMessage.length > 50 ? firstMessage.substring(0, 50) + '...' : firstMessage;
     try {
-      await supabase
-        .from('chat_sessions')
-        .update({ title })
-        .eq('id', sessionId);
+      await supabase.from('chat_sessions').update({ title }).eq('id', sessionId);
     } catch (error) {
       console.error('Error updating session title:', error);
     }
@@ -193,20 +175,14 @@ export function ChatInterface() {
       return;
     }
 
-    // --- NEW GATEKEEPER CHECK START ---
     try {
-      // Calls the new SQL function that Checks Limits AND Increments usage in one step
       const { data: usageCheck, error: usageError } = await supabase.rpc('check_and_increment_usage');
       
-      if (usageError) {
-        console.error("Gatekeeper Error:", usageError);
-        throw usageError;
-      }
+      if (usageError) throw usageError;
 
       if (usageCheck && usageCheck.allowed === false) {
         let title = "Usage Limit Reached";
         let description = "Please upgrade your plan.";
-
         if (usageCheck.reason === 'expired') {
             title = "Free Trial Expired";
             description = "Your 3-day free trial has ended. Please upgrade to continue accessing Jurist Mind.";
@@ -223,19 +199,14 @@ export function ChatInterface() {
           description: description,
           variant: "destructive",
           action: (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.location.href = '/upgrade'}
-            >
+            <Button variant="outline" size="sm" onClick={() => window.location.href = '/upgrade'}>
               Upgrade Now
             </Button>
           ),
         });
-        return; // STOP EXECUTION HERE
+        return;
       }
 
-      // Show warning if close to limit (Optional UX improvement)
       if (usageCheck.limit && (usageCheck.limit - usageCheck.requests_used) <= 2) {
          toast({
           title: "Usage Notice",
@@ -252,19 +223,12 @@ export function ChatInterface() {
       });
       return;
     }
-    // --- NEW GATEKEEPER CHECK END ---
 
     let sessionId = currentSessionId;
-    
-    // Create new session if none exists
     if (!sessionId) {
       sessionId = await createNewSession();
       if (!sessionId) {
-        toast({
-          title: "Error",
-          description: "Failed to create chat session",
-          variant: "destructive",
-        });
+        toast({ title: "Error", description: "Failed to create chat session", variant: "destructive" });
         return;
       }
       setCurrentSessionId(sessionId);
@@ -284,7 +248,6 @@ export function ChatInterface() {
     setInputValue("");
     setIsLoading(true);
 
-    // Save user message and get db_id
     const userDbId = await saveMessage(sessionId, userMessageContent, 'user');
     if (userDbId) {
       setMessages(prev => prev.map(msg => 
@@ -292,12 +255,10 @@ export function ChatInterface() {
       ));
     }
     
-    // Update title if first message
     if (messages.length === 0) {
       await updateSessionTitle(sessionId, userMessageContent);
     }
 
-    // Add placeholder AI message
     const aiTempId = (Date.now() + 1).toString();
     const aiPlaceholder: Message = {
       id: aiTempId,
@@ -308,7 +269,6 @@ export function ChatInterface() {
     setMessages(prev => [...prev, aiPlaceholder]);
 
     try {
-      // Call Python backend with Grok API - using FormData as backend expects
       const formData = new FormData();
       formData.append('question', userMessageContent);
       if (sessionId) formData.append('chat_id', sessionId);
@@ -319,14 +279,8 @@ export function ChatInterface() {
         body: formData
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to get AI response');
-      }
-
-      // Handle streaming SSE response
-      if (!response.body) {
-        throw new Error('No response body from server');
-      }
+      if (!response.ok) throw new Error('Failed to get AI response');
+      if (!response.body) throw new Error('No response body from server');
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -355,39 +309,30 @@ export function ChatInterface() {
               if (data.content) {
                 fullContent += data.content;
                 setMessages(prev => prev.map(msg => 
-                  msg.id === aiTempId 
-                    ? { ...msg, content: fullContent }
-                    : msg
+                  msg.id === aiTempId ? { ...msg, content: fullContent } : msg
                 ));
               }
-              if (data.type === "done") {
-                done = true;
-              }
+              if (data.type === "done") done = true;
             } catch (parseError) {
-              // If not JSON, it might be plain text content
               console.log("Chunk parse info:", parseError);
             }
           }
         }
       }
 
-      // If no streaming content received, try parsing as regular JSON
       if (!fullContent) {
         try {
           const text = await response.text();
           const data = JSON.parse(text);
           fullContent = data.answer || data.content || "I'm JURIST MIND, your legal AI assistant.";
           setMessages(prev => prev.map(msg => 
-            msg.id === aiTempId 
-              ? { ...msg, content: fullContent }
-              : msg
+            msg.id === aiTempId ? { ...msg, content: fullContent } : msg
           ));
         } catch {
           fullContent = "Response received but could not be parsed.";
         }
       }
       
-      // Save AI response to database
       if (fullContent) {
         const aiDbId = await saveMessage(sessionId, fullContent, 'ai');
         if (aiDbId) {
@@ -396,9 +341,6 @@ export function ChatInterface() {
           ));
         }
       }
-      
-      // REMOVED: Old 'increment-ai-usage' call.
-      // The RPC 'check_and_increment_usage' at the top already handled counting.
       
     } catch (error) {
       console.error('Error calling AI:', error);
@@ -409,15 +351,9 @@ export function ChatInterface() {
       });
       
       const errorContent = "I'm having trouble connecting right now. Please try again later.";
-      
-      // Update with error message
       setMessages(prev => prev.map(msg => 
-        msg.id === aiTempId 
-          ? { ...msg, content: errorContent }
-          : msg
+        msg.id === aiTempId ? { ...msg, content: errorContent } : msg
       ));
-      
-      // Save error response
       await saveMessage(sessionId, errorContent, 'ai');
     } finally {
       setIsLoading(false);
@@ -427,7 +363,6 @@ export function ChatInterface() {
   const loadSession = async (sessionId: string) => {
     try {
       setIsLoading(true);
-      
       const { data, error } = await supabase
         .from('chat_messages')
         .select('id, content, sender, created_at')
@@ -437,7 +372,6 @@ export function ChatInterface() {
       if (error) throw error;
       
       if (!data || data.length === 0) {
-        console.log('No messages found for session:', sessionId);
         setMessages([]);
         setCurrentSessionId(sessionId);
         return;
@@ -445,7 +379,7 @@ export function ChatInterface() {
       
       const loadedMessages: Message[] = data.map((msg) => ({
         id: msg.id,
-        db_id: msg.id, // Store the database ID
+        db_id: msg.id,
         content: msg.content,
         sender: msg.sender as 'user' | 'ai',
         timestamp: new Date(msg.created_at),
@@ -454,22 +388,12 @@ export function ChatInterface() {
       
       setMessages(loadedMessages);
       setCurrentSessionId(sessionId);
-      console.log('Loaded', loadedMessages.length, 'messages for session:', sessionId);
     } catch (error) {
       console.error('Error loading session:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load chat session",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to load chat session", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const startNewChat = () => {
-    setMessages([]);
-    setCurrentSessionId(null);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -482,19 +406,19 @@ export function ChatInterface() {
   return (
     <div className="flex h-full bg-background">
       {/* Main Chat Area */}
-      <div className="flex flex-col flex-1 h-full">
+      <div className="flex flex-col flex-1 h-full w-full">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-background/95 backdrop-blur z-10">
           <h1 className="text-xl font-semibold">JURIST MIND</h1>
         </div>
         
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto p-6">
+        <div className="flex-1 overflow-y-auto w-full">
+          <div className="max-w-4xl mx-auto p-4 md:p-6 w-full">
             {messages.length === 0 ? (
-              <div className="text-center py-20">
-                <h2 className="text-4xl font-bold text-foreground mb-8">JURIST MIND</h2>
-                <p className="text-lg text-muted-foreground mb-12">
+              <div className="text-center py-10 md:py-20 px-4">
+                <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4 md:mb-8">JURIST MIND</h2>
+                <p className="text-base md:text-lg text-muted-foreground mb-8 md:mb-12">
                   {user ? "What do you want to know?" : "Please sign in to start chatting"}
                 </p>
                 {!user && (
@@ -507,27 +431,57 @@ export function ChatInterface() {
                 )}
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-6 pb-4">
                 {messages.map((message) => (
                   <div
                     key={message.id}
                     className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-2xl p-4 rounded-2xl ${
+                      className={`max-w-[85%] md:max-w-2xl p-4 rounded-2xl ${
                         message.sender === "user"
                           ? "bg-foreground text-background"
                           : "bg-transparent border border-border"
                       }`}
                     >
                       {message.content ? (
-                        <p className="text-sm leading-relaxed">{message.content}</p>
+                        <div className={`text-sm leading-relaxed break-words ${message.sender === "user" ? "prose-invert" : ""}`}>
+                          {/* Markdown Rendering */}
+                          <ReactMarkdown
+                            components={{
+                              // Style specific markdown elements
+                              p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                              strong: ({node, ...props}) => <span className="font-bold" {...props} />,
+                              ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
+                              ol: ({node, ...props}) => <ol className="list-decimal pl-4 mb-2 space-y-1" {...props} />,
+                              li: ({node, ...props}) => <li className="pl-1" {...props} />,
+                              h1: ({node, ...props}) => <h1 className="text-lg font-bold mt-4 mb-2" {...props} />,
+                              h2: ({node, ...props}) => <h2 className="text-base font-bold mt-3 mb-2" {...props} />,
+                              h3: ({node, ...props}) => <h3 className="text-sm font-bold mt-2 mb-1" {...props} />,
+                              code: ({node, className, ...props}) => (
+                                <code className={`bg-muted/50 px-1 py-0.5 rounded font-mono text-xs ${className}`} {...props} />
+                              ),
+                              pre: ({node, ...props}) => (
+                                <div className="overflow-x-auto w-full my-2 bg-muted/50 p-2 rounded-lg">
+                                    <pre className="text-xs" {...props} />
+                                </div>
+                              ),
+                            }}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
                       ) : (
-                        <p className="text-sm leading-relaxed text-muted-foreground">Thinking...</p>
+                        <p className="text-sm leading-relaxed text-muted-foreground animate-pulse">Thinking...</p>
                       )}
-                      <p className="text-xs opacity-70 mt-2">
-                        {message.timestamp.toLocaleTimeString()}
-                      </p>
+                      
+                      <div className="flex items-center justify-between mt-2 gap-2">
+                         <p className="text-xs opacity-70">
+                            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          {/* Copy Button can go here later if needed */}
+                      </div>
+
                       {message.sender === "ai" && message.sources && message.sources.length > 0 && (
                         <SourceDisplay sources={message.sources} />
                       )}
@@ -541,13 +495,13 @@ export function ChatInterface() {
         </div>
 
         {/* Input Area */}
-        <div className="flex-shrink-0 p-6">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex gap-3 items-center">
+        <div className="flex-shrink-0 p-3 md:p-6 bg-background">
+          <div className="max-w-4xl mx-auto w-full">
+            <div className="flex gap-2 md:gap-3 items-center">
               <Button
                 size="sm"
                 variant="ghost"
-                className="p-2 h-10 w-10 rounded-full"
+                className="p-2 h-10 w-10 rounded-full hidden md:flex"
               >
                 <Paperclip className="w-5 h-5" />
               </Button>
@@ -557,13 +511,13 @@ export function ChatInterface() {
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="What do you want to know?"
-                  className="pr-20 py-3 text-base bg-transparent border border-border focus:ring-primary focus:border-primary rounded-full"
+                  className="pr-20 py-3 text-base bg-transparent border border-border focus:ring-primary focus:border-primary rounded-full w-full"
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="p-2 h-8 w-8 rounded-full"
+                    className="p-2 h-8 w-8 rounded-full hidden sm:flex"
                   >
                     <Mic className="w-4 h-4" />
                   </Button>
@@ -571,7 +525,7 @@ export function ChatInterface() {
                     onClick={handleSendMessage}
                     disabled={!inputValue.trim() || isLoading || !user}
                     size="sm"
-                    className="p-2 h-8 w-8 rounded-full bg-foreground text-background hover:bg-foreground/90"
+                    className="p-2 h-8 w-8 rounded-full bg-foreground text-background hover:bg-foreground/90 shrink-0"
                   >
                     <Send className="w-3 h-3" />
                   </Button>
@@ -580,8 +534,8 @@ export function ChatInterface() {
             </div>
             
             {/* Terms and Conditions */}
-            <div className="text-center mt-4">
-              <p className="text-xs text-muted-foreground">
+            <div className="text-center mt-3 md:mt-4">
+              <p className="text-[10px] md:text-xs text-muted-foreground">
                 By using Jurist Mind, you consent to the{' '}
                 <NavLink to="/terms" className="text-primary hover:underline">
                   terms and conditions
