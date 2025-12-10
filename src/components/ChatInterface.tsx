@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { Send, Mic, Paperclip, Copy, Check, RotateCcw, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+// Removed Input import as we are replacing it
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { NavLink } from "react-router-dom";
 import { SourceDisplay } from "@/components/SourceDisplay";
 import ReactMarkdown from "react-markdown";
+import TextareaAutosize from 'react-textarea-autosize'; // 👈 1. Import this
 
 interface Message {
   id: string;
@@ -23,11 +24,14 @@ export function ChatInterface() {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null); // Track copied state
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const { user } = useAuth();
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 👈 2. Helper to detect mobile devices
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -94,7 +98,7 @@ export function ChatInterface() {
     };
   }, [currentSessionId]);
 
-  // --- NEW ACTIONS ---
+  // --- ACTIONS ---
 
   const handleCopy = (content: string, id: string) => {
     navigator.clipboard.writeText(content);
@@ -123,14 +127,11 @@ export function ChatInterface() {
   };
 
   const handleRegenerate = async () => {
-    // Find the last user message
     const lastUserMessage = [...messages].reverse().find(m => m.sender === 'user');
     if (lastUserMessage && !isLoading) {
-      // Remove the last AI message from UI to show it's regenerating
       if (messages[messages.length - 1].sender === 'ai') {
          setMessages(prev => prev.slice(0, -1));
       }
-      // Re-process
       await processMessage(lastUserMessage.content, true);
     }
   };
@@ -184,14 +185,12 @@ export function ChatInterface() {
     try { await supabase.from('chat_sessions').update({ title }).eq('id', sessionId); } catch (error) { console.error(error); }
   };
 
-  // Main Logic extracted to support Regenerate
   const processMessage = async (messageContent: string, isRegeneration: boolean = false) => {
     if (!user) {
       toast({ title: "Authentication Required", description: "Please sign in.", variant: "destructive" });
       return;
     }
 
-    // Gatekeeper Check
     try {
       const { data: usageCheck, error: usageError } = await supabase.rpc('check_and_increment_usage');
       if (usageError) throw usageError;
@@ -205,7 +204,6 @@ export function ChatInterface() {
         });
         return;
       }
-      // Usage warning
       if (usageCheck.limit && (usageCheck.limit - usageCheck.requests_used) <= 2) {
          toast({ title: "Usage Notice", description: `You have ${usageCheck.limit - usageCheck.requests_used} requests remaining today.` });
       }
@@ -224,7 +222,6 @@ export function ChatInterface() {
       setCurrentSessionId(sessionId);
     }
 
-    // If NOT regenerating, we add the user message to UI and DB
     if (!isRegeneration) {
         setInputValue("");
         const tempMessageId = Date.now().toString();
@@ -248,7 +245,6 @@ export function ChatInterface() {
 
     setIsLoading(true);
 
-    // AI Placeholder
     const aiTempId = (Date.now() + 1).toString();
     const aiPlaceholder: Message = {
       id: aiTempId,
@@ -369,10 +365,16 @@ export function ChatInterface() {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+  // 👈 3. UPDATED KEY HANDLER
+  // Handles "Enter" differently on mobile vs desktop
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      // If NOT mobile and Shift is NOT pressed -> Send Message
+      if (!e.shiftKey && !isMobile) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+      // On mobile, "Enter" naturally adds a new line (default behavior), so we do nothing.
     }
   };
 
@@ -450,8 +452,6 @@ export function ChatInterface() {
                       {/* ACTION BAR (Only for AI) */}
                       {message.sender === "ai" && message.content && (
                         <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
-                          
-                          {/* Copy Button */}
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -462,7 +462,6 @@ export function ChatInterface() {
                             {copiedId === message.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                           </Button>
 
-                          {/* Regenerate Button (Only on the latest message) */}
                           {index === messages.length - 1 && !isLoading && (
                             <Button 
                                 variant="ghost" 
@@ -475,9 +474,8 @@ export function ChatInterface() {
                             </Button>
                           )}
 
-                          <div className="flex-1" /> {/* Spacer */}
+                          <div className="flex-1" />
 
-                          {/* Feedback Buttons */}
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -496,14 +494,13 @@ export function ChatInterface() {
                           </Button>
                         </div>
                       )}
-                      {/* --- END ACTION BAR --- */}
 
                       <div className="flex items-center justify-between mt-2 gap-2">
-                         {message.sender === "user" && (
+                          {message.sender === "user" && (
                              <p className="text-xs opacity-70">
                                 {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                              </p>
-                         )}
+                          )}
                       </div>
 
                       {message.sender === "ai" && message.sources && message.sources.length > 0 && (
@@ -518,26 +515,31 @@ export function ChatInterface() {
           </div>
         </div>
 
-        {/* Input Area */}
+        {/* 👈 4. INPUT AREA REPLACED */}
         <div className="flex-shrink-0 p-3 md:p-6 bg-background">
           <div className="max-w-4xl mx-auto w-full">
-            <div className="flex gap-2 md:gap-3 items-center">
+            <div className="flex gap-2 md:gap-3 items-end bg-background border border-border rounded-3xl p-2 focus-within:ring-2 focus-within:ring-primary/20 transition-all shadow-sm">
               <Button
                 size="sm"
                 variant="ghost"
-                className="p-2 h-10 w-10 rounded-full hidden md:flex"
+                className="p-2 h-10 w-10 rounded-full hidden md:flex shrink-0 mb-0.5"
               >
                 <Paperclip className="w-5 h-5" />
               </Button>
-              <div className="flex-1 relative">
-                <Input
+              
+              <div className="flex-1 relative min-h-[44px] flex items-center">
+                {/* AUTO-EXPANDING TEXTAREA */}
+                <TextareaAutosize
+                  minRows={1}
+                  maxRows={5}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyDown={handleKeyDown}
                   placeholder="What do you want to know?"
-                  className="pr-20 py-3 text-base bg-transparent border border-border focus:ring-primary focus:border-primary rounded-full w-full"
+                  className="w-full bg-transparent border-none resize-none focus:outline-none focus:ring-0 text-base py-3 pr-20 max-h-[150px]"
                 />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+                
+                <div className="absolute right-0 bottom-0 flex gap-1 pb-1">
                   <Button
                     size="sm"
                     variant="ghost"
