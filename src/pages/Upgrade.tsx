@@ -3,24 +3,26 @@ import { Check, Crown, Zap, Shield, Loader2, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@supabase/supabase-js";
-import { toast } from "sonner"; 
+import { toast } from "sonner";
 import PaystackPop from "@paystack/inline-js";
-import { useNavigate } from "react-router-dom"; // 👈 1. Import this
+import { useNavigate } from "react-router-dom";
 
 // --- 1. SETUP SUPABASE ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const paystackPublicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+
 // Initialize once to prevent "Multiple Instances" warning
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
 export default function Upgrade() {
-  const navigate = useNavigate(); // 👈 2. Initialize hook
+  const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
    
-  // Stores the ACTIVE plan key (e.g. "student_monthly", "monthly", "yearly")
+  // Stores the ACTIVE plan key
   const [activePlanKey, setActivePlanKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,20 +40,18 @@ export default function Upgrade() {
         if (currentUser) {
           setUser(currentUser);
 
-          // B. Get Active Subscription (UNIVERSAL FIX)
-          // We fetch the 'plan' column (text) which matches 'plan_key' in the plans table
-          const { data: subData, error } = await supabase
+          // B. Get Active Subscription
+          const { data: subData } = await supabase
             .from("subscriptions")
-            .select("plan") 
+            .select("plan")
             .eq("user_id", currentUser.id)
             .eq("status", "active")
-            .order("created_at", { ascending: false }) 
+            .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
 
           if (subData) {
-            console.log("✅ Active Plan Key Found:", subData.plan);
-            setActivePlanKey(subData.plan); // This works for ANY plan name
+            setActivePlanKey(subData.plan);
           }
         }
 
@@ -59,7 +59,7 @@ export default function Upgrade() {
         const { data: plansData, error } = await supabase
           .from("plans")
           .select("*")
-          .neq('plan_key', 'free') 
+          .neq('plan_key', 'free')
           .order("price_ngn", { ascending: true });
 
         if (error) throw error;
@@ -81,9 +81,9 @@ export default function Upgrade() {
   }, []);
 
   const handleSubscribe = async (plan: any) => {
-    // 👈 3. Updated Logic for Enterprise
+    // Enterprise Logic
     if (plan.plan_key === 'enterprise') {
-      navigate('/contact-sales'); 
+      navigate('/contact-sales');
       return;
     }
 
@@ -97,11 +97,16 @@ export default function Upgrade() {
       return;
     }
 
+    if (!paystackPublicKey) {
+      toast.error("Configuration Error: Missing Paystack Public Key");
+      return;
+    }
+
     setProcessingPlanId(plan.id);
 
     const paystack = new PaystackPop();
     paystack.newTransaction({
-      key: "pk_test_9ae5352493ce583348ed61f75aff6077ed40e965", 
+      key: paystackPublicKey, // 👈 USES LIVE KEY FROM ENV
       email: user.email,
       amount: plan.price_ngn * 100,
       plan: plan.paystack_plan_id,
@@ -116,8 +121,9 @@ export default function Upgrade() {
       },
       
       onSuccess: async (transaction: any) => {
-        toast.success(`Payment Successful! Switching to ${plan.name}...`);
+        toast.success(`Payment Successful! Reference: ${transaction.reference}`);
         setProcessingPlanId(null);
+        // Reload to refresh subscription status
         setTimeout(() => {
             window.location.reload();
         }, 2500);
@@ -155,9 +161,6 @@ export default function Upgrade() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             {plans.map((plan) => {
-              // UNIVERSAL CHECK:
-              // This compares the string from your subscription (e.g. 'student_monthly')
-              // with the string from the plan card (e.g. 'student_monthly').
               const isCurrentPlan = activePlanKey === plan.plan_key;
 
               return (
