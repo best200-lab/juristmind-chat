@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { NavLink } from "react-router-dom";
 import { SourceDisplay } from "@/components/SourceDisplay";
 import ReactMarkdown from "react-markdown";
-import TextareaAutosize from 'react-textarea-autosize'; // 👈 1. Import this
+import TextareaAutosize from 'react-textarea-autosize';
 
 interface Message {
   id: string;
