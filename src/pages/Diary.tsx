@@ -77,7 +77,7 @@ export default function Diary() {
     }
   }, [user]);
 
-  // --- INTELLIGENT REMINDER SYSTEM (Visual Only) ---
+  // --- INTELLIGENT REMINDER SYSTEM (Visual Only + Dismissable) ---
   useEffect(() => {
     if (entries.length === 0) return;
 
@@ -91,22 +91,26 @@ export default function Diary() {
         const diff = differenceInMinutes(eventDateTime, now);
 
         if (diff >= -5 && diff <= 15) {
-          // REMOVED AUDIO CODE HERE
-
-          // Show Visual Toast (Stays until clicked)
+          
+          // 👇 UPDATED: Use a function to get the 'id' for dismissal
           toast(
-            <div className="flex flex-col gap-1 w-full">
-              <div className="flex items-center gap-2 font-bold text-foreground">
-                <BellRing className="w-4 h-4 text-orange-500 animate-pulse" /> 
-                {diff <= 0 ? "Starting Now!" : `Starting in ${diff} mins`}
+            (id) => (
+              <div 
+                className="flex flex-col gap-1 w-full cursor-pointer"
+                onClick={() => toast.dismiss(id)}
+              >
+                <div className="flex items-center gap-2 font-bold text-foreground">
+                  <BellRing className="w-4 h-4 text-orange-500 animate-pulse" /> 
+                  {diff <= 0 ? "Starting Now!" : `Starting in ${diff} mins`}
+                </div>
+                <p className="text-sm text-muted-foreground font-medium">{entry.title}</p>
+                <p className="text-xs text-muted-foreground opacity-70 mt-1">Click to dismiss</p>
               </div>
-              <p className="text-sm text-muted-foreground font-medium">{entry.title}</p>
-              <p className="text-xs text-muted-foreground opacity-70 mt-1">Click to dismiss</p>
-            </div>,
+            ),
             { 
               duration: Infinity, 
               position: "top-right",
-              className: "border-l-4 border-orange-500 bg-white shadow-xl cursor-pointer",
+              className: "border-l-4 border-orange-500 bg-white shadow-xl p-0", // p-0 ensures click area covers whole toast
             }
           );
 
