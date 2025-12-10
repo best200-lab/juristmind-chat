@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Calendar as CalendarIcon, Clock, Plus, Edit, Trash2, Search, BellRing, X } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Plus, Edit, Trash2, Search, BellRing } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,7 +77,7 @@ export default function Diary() {
     }
   }, [user]);
 
-  // --- INTELLIGENT REMINDER SYSTEM ---
+  // --- INTELLIGENT REMINDER SYSTEM (Visual Only) ---
   useEffect(() => {
     if (entries.length === 0) return;
 
@@ -91,12 +91,9 @@ export default function Diary() {
         const diff = differenceInMinutes(eventDateTime, now);
 
         if (diff >= -5 && diff <= 15) {
-          // Play sound
-          const sound = new Audio('/notification.mp3');
-          sound.volume = 0.6;
-          sound.play().catch(() => {}); // Catch autoplay blocks
+          // REMOVED AUDIO CODE HERE
 
-          // 👇 FIXED: Duration set to Infinity so it stays until clicked
+          // Show Visual Toast (Stays until clicked)
           toast(
             <div className="flex flex-col gap-1 w-full">
               <div className="flex items-center gap-2 font-bold text-foreground">
@@ -107,11 +104,9 @@ export default function Diary() {
               <p className="text-xs text-muted-foreground opacity-70 mt-1">Click to dismiss</p>
             </div>,
             { 
-              duration: Infinity, // 👈 THIS KEEPS IT ON SCREEN
+              duration: Infinity, 
               position: "top-right",
               className: "border-l-4 border-orange-500 bg-white shadow-xl cursor-pointer",
-              onDismiss: () => {}, // Optional callback
-              onAutoClose: () => {}, // Optional callback
             }
           );
 
