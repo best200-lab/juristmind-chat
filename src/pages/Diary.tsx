@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Calendar as CalendarIcon, Clock, Plus, Edit, Trash2, Search, BellRing } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Plus, Edit, Trash2, Search, BellRing, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar"; // Visual Calendar
+import { Calendar } from "@/components/ui/calendar"; 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,8 +16,8 @@ import { differenceInMinutes, parseISO, isSameDay, format } from "date-fns";
 interface DiaryEntry {
   id: string;
   title: string;
-  entry_date: string; // Format: YYYY-MM-DD
-  entry_time: string; // Format: HH:mm
+  entry_date: string;
+  entry_time: string;
   entry_type: string;
   description: string;
   priority: string;
@@ -55,10 +55,7 @@ export default function Diary() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
-  // New: Calendar Selection State
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  
-  // New: Track notified events to prevent duplicate alerts
   const notifiedEventIds = useRef<Set<string>>(new Set());
 
   const [formData, setFormData] = useState({
@@ -80,8 +77,7 @@ export default function Diary() {
     }
   }, [user]);
 
-  // --- NEW: INTELLIGENT REMINDER SYSTEM ---
-  // Runs every 60 seconds to check for upcoming events
+  // --- INTELLIGENT REMINDER SYSTEM ---
   useEffect(() => {
     if (entries.length === 0) return;
 
@@ -89,38 +85,41 @@ export default function Diary() {
       const now = new Date();
       
       entries.forEach(entry => {
-        // Skip if no time set or already notified
         if (!entry.entry_time || !entry.entry_date || notifiedEventIds.current.has(entry.id)) return;
 
-        // Construct full Date object for the event
-        // entry_date is YYYY-MM-DD, entry_time is HH:mm
         const eventDateTime = new Date(`${entry.entry_date}T${entry.entry_time}`);
-        
         const diff = differenceInMinutes(eventDateTime, now);
 
-        // Alert if event is starting within 15 minutes (and hasn't passed by more than 5 mins)
         if (diff >= -5 && diff <= 15) {
-          // Play a sound (Optional)
-          // const audio = new Audio('/notification.mp3'); audio.play();
+          // Play sound
+          const sound = new Audio('/notification.mp3');
+          sound.volume = 0.6;
+          sound.play().catch(() => {}); // Catch autoplay blocks
 
+          // 👇 FIXED: Duration set to Infinity so it stays until clicked
           toast(
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 w-full">
               <div className="flex items-center gap-2 font-bold text-foreground">
-                <BellRing className="w-4 h-4 text-orange-500" /> 
+                <BellRing className="w-4 h-4 text-orange-500 animate-pulse" /> 
                 {diff <= 0 ? "Starting Now!" : `Starting in ${diff} mins`}
               </div>
-              <p className="text-sm text-muted-foreground">{entry.title} ({entry.entry_time})</p>
+              <p className="text-sm text-muted-foreground font-medium">{entry.title}</p>
+              <p className="text-xs text-muted-foreground opacity-70 mt-1">Click to dismiss</p>
             </div>,
-            { duration: 8000, position: "top-right" }
+            { 
+              duration: Infinity, // 👈 THIS KEEPS IT ON SCREEN
+              position: "top-right",
+              className: "border-l-4 border-orange-500 bg-white shadow-xl cursor-pointer",
+              onDismiss: () => {}, // Optional callback
+              onAutoClose: () => {}, // Optional callback
+            }
           );
 
-          // Mark as notified so we don't spam
           notifiedEventIds.current.add(entry.id);
         }
       });
     };
 
-    // Run immediately on load, then every minute
     checkReminders();
     const interval = setInterval(checkReminders, 60000); 
     return () => clearInterval(interval);
@@ -134,7 +133,6 @@ export default function Diary() {
 
       if (error) throw error;
       
-      // Sort entries by date/time descending
       const sorted = (data || []).sort((a: DiaryEntry, b: DiaryEntry) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
@@ -196,16 +194,12 @@ export default function Diary() {
     });
   };
 
-  // 1. First, filter by the visual calendar selected date
-  // 2. Then filter by search term
   const filteredEntries = entries.filter(entry => {
     const matchesSearch = 
       entry.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       entry.entry_type.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // If a date is selected in calendar, only show events for that date
-    // If no date is selected (user clicked off), show all matching search
     const matchesDate = selectedDate 
       ? isSameDay(parseISO(entry.entry_date), selectedDate)
       : true;
@@ -236,7 +230,6 @@ export default function Diary() {
                 <DialogDescription>Add a new schedule to your legal diary.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Form Inputs (Same as your original code) */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div className="col-span-2 md:col-span-1 space-y-2">
                     <Label htmlFor="title">Title *</Label>
@@ -306,7 +299,6 @@ export default function Diary() {
                 onSelect={setSelectedDate}
                 className="rounded-md border bg-background"
                 modifiers={{
-                    // Highlight days that have events
                     hasEvent: (date) => entries.some(e => isSameDay(parseISO(e.entry_date), date))
                 }}
                 modifiersStyles={{
@@ -327,7 +319,6 @@ export default function Diary() {
 
           {/* RIGHT: ENTRIES LIST */}
           <div className="flex-1">
-            {/* Search Bar */}
             <div className="relative mb-6">
               <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input 
@@ -355,7 +346,6 @@ export default function Diary() {
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Group heading if filtering by date */}
                 {selectedDate && (
                     <h3 className="font-semibold text-lg mb-4 text-foreground">
                         Schedule for {format(selectedDate, 'MMMM do, yyyy')}
