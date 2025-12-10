@@ -1,6 +1,5 @@
-
-import { useState, useEffect } from "react";
-import { Calendar, Clock, Plus, Edit, Trash2, Search, Crown } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Calendar as CalendarIcon, Clock, Plus, Edit, Trash2, Search, BellRing } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,15 +7,17 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar"; // Visual Calendar
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { differenceInMinutes, parseISO, isSameDay, format } from "date-fns";
 
 interface DiaryEntry {
   id: string;
   title: string;
-  entry_date: string;
-  entry_time: string;
+  entry_date: string; // Format: YYYY-MM-DD
+  entry_time: string; // Format: HH:mm
   entry_type: string;
   description: string;
   priority: string;
@@ -28,7 +29,6 @@ interface DiaryEntry {
 
 const entryTypes = ["Meeting", "Court", "Task", "Research", "Deadline", "Other"];
 const priorityOptions = ["High", "Medium", "Low"];
-const statusOptions = ["Upcoming", "Completed", "In Progress", "Cancelled"];
 
 const getPriorityColor = (priority: string) => {
   switch (priority) {
@@ -41,7 +41,7 @@ const getPriorityColor = (priority: string) => {
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case "Upcoming": return "text-primary bg-primary/10 border-primary/20";
+    case "Upcoming": return "text-blue-600 bg-blue-50 border-blue-200";
     case "Completed": return "text-green-600 bg-green-50 border-green-200";
     case "In Progress": return "text-yellow-600 bg-yellow-50 border-yellow-200";
     case "Cancelled": return "text-red-600 bg-red-50 border-red-200";
@@ -54,7 +54,13 @@ export default function Diary() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isPremium, setIsPremium] = useState(false);
+  
+  // New: Calendar Selection State
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  
+  // New: Track notified events to prevent duplicate alerts
+  const notifiedEventIds = useRef<Set<string>>(new Set());
+
   const [formData, setFormData] = useState({
     title: "",
     entry_date: "",
@@ -70,46 +76,69 @@ export default function Diary() {
 
   useEffect(() => {
     if (user) {
-      checkPremiumStatus();
       fetchEntries();
     }
   }, [user]);
 
-  const checkPremiumStatus = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('check-credits', {
-        body: { action: 'check' }
-      });
+  // --- NEW: INTELLIGENT REMINDER SYSTEM ---
+  // Runs every 60 seconds to check for upcoming events
+  useEffect(() => {
+    if (entries.length === 0) return;
 
-      if (error) {
-        console.error('Error checking premium status:', error);
-        return;
-      }
-      setIsPremium(data.is_premium_active || false);
-    } catch (error) {
-      console.error('Error checking premium status:', error);
-    }
-  };
+    const checkReminders = () => {
+      const now = new Date();
+      
+      entries.forEach(entry => {
+        // Skip if no time set or already notified
+        if (!entry.entry_time || !entry.entry_date || notifiedEventIds.current.has(entry.id)) return;
+
+        // Construct full Date object for the event
+        // entry_date is YYYY-MM-DD, entry_time is HH:mm
+        const eventDateTime = new Date(`${entry.entry_date}T${entry.entry_time}`);
+        
+        const diff = differenceInMinutes(eventDateTime, now);
+
+        // Alert if event is starting within 15 minutes (and hasn't passed by more than 5 mins)
+        if (diff >= -5 && diff <= 15) {
+          // Play a sound (Optional)
+          // const audio = new Audio('/notification.mp3'); audio.play();
+
+          toast(
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 font-bold text-foreground">
+                <BellRing className="w-4 h-4 text-orange-500" /> 
+                {diff <= 0 ? "Starting Now!" : `Starting in ${diff} mins`}
+              </div>
+              <p className="text-sm text-muted-foreground">{entry.title} ({entry.entry_time})</p>
+            </div>,
+            { duration: 8000, position: "top-right" }
+          );
+
+          // Mark as notified so we don't spam
+          notifiedEventIds.current.add(entry.id);
+        }
+      });
+    };
+
+    // Run immediately on load, then every minute
+    checkReminders();
+    const interval = setInterval(checkReminders, 60000); 
+    return () => clearInterval(interval);
+  }, [entries]);
 
   const fetchEntries = async () => {
     try {
-        // Remove premium check - make diary available to all users
-        const { data, error } = await supabase.functions.invoke('manage-diary', {
-          body: { action: 'list' }
-        });
+      const { data, error } = await supabase.functions.invoke('manage-diary', {
+        body: { action: 'list' }
+      });
 
-      if (error && error.requiresUpgrade) {
-        setEntries([]);
-        return;
-      }
+      if (error) throw error;
       
-      if (error) {
-        console.error('Error fetching entries:', error);
-        toast.error('Failed to fetch diary entries');
-        return;
-      }
-      
-      setEntries(data || []);
+      // Sort entries by date/time descending
+      const sorted = (data || []).sort((a: DiaryEntry, b: DiaryEntry) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      setEntries(sorted);
     } catch (error) {
       console.error('Error fetching diary entries:', error);
       toast.error('Failed to fetch diary entries');
@@ -120,38 +149,18 @@ export default function Diary() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!user) {
-      toast.error('Please log in to create diary entries');
-      return;
-    }
-
-    // Remove premium check - make diary available to all users
+    if (!user) return;
 
     try {
       const { data, error } = await supabase.functions.invoke('manage-diary', {
         body: { action: 'create', entryData: formData }
       });
 
-      if (error) {
-        console.error('Error creating diary entry:', error);
-        toast.error('Failed to create diary entry');
-        return;
-      }
+      if (error) throw error;
       
       setEntries([data, ...entries]);
       setIsDialogOpen(false);
-      setFormData({
-        title: "",
-        entry_date: "",
-        entry_time: "",
-        entry_type: "",
-        description: "",
-        priority: "Medium",
-        status: "Upcoming",
-        suit_number: "",
-        next_adjourn_date: "",
-      });
+      resetForm();
       toast.success('Diary entry created successfully');
     } catch (error) {
       console.error('Error creating diary entry:', error);
@@ -161,116 +170,96 @@ export default function Diary() {
 
   const handleDelete = async (entryId: string) => {
     if (!confirm('Are you sure you want to delete this entry?')) return;
-
     try {
       const { error } = await supabase.functions.invoke('manage-diary', {
         body: { action: 'delete', entryData: { id: entryId } }
       });
-
-      if (error) {
-        console.error('Error deleting entry:', error);
-        toast.error('Failed to delete entry');
-        return;
-      }
-
+      if (error) throw error;
       setEntries(entries.filter(entry => entry.id !== entryId));
       toast.success('Entry deleted successfully');
     } catch (error) {
-      console.error('Error deleting entry:', error);
       toast.error('Failed to delete entry');
     }
   };
 
-  const filteredEntries = entries.filter(entry =>
-    entry.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    entry.entry_type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      entry_date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : "",
+      entry_time: "",
+      entry_type: "",
+      description: "",
+      priority: "Medium",
+      status: "Upcoming",
+      suit_number: "",
+      next_adjourn_date: "",
+    });
+  };
 
-  // Remove premium check - make diary available to all users
+  // 1. First, filter by the visual calendar selected date
+  // 2. Then filter by search term
+  const filteredEntries = entries.filter(entry => {
+    const matchesSearch = 
+      entry.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      entry.entry_type.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // If a date is selected in calendar, only show events for that date
+    // If no date is selected (user clicked off), show all matching search
+    const matchesDate = selectedDate 
+      ? isSameDay(parseISO(entry.entry_date), selectedDate)
+      : true;
+
+    return matchesSearch && matchesDate;
+  });
+
   return (
     <div className="h-full bg-background overflow-y-auto">
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Legal Diary</h1>
-          <p className="text-muted-foreground">Manage your legal practice schedule and tasks</p>
-        </div>
-
-        {/* Search and Add */}
-        <div className="flex gap-4 mb-8">
-          <div className="flex-1 relative">
-            <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input 
-              placeholder="Search diary entries..." 
-              className="pl-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="flex flex-col md:flex-row justify-between items-start mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-2">
+              Legal Diary <span className="text-sm font-normal text-muted-foreground bg-muted px-2 py-1 rounded-full">{entries.length} Entries</span>
+            </h1>
+            <p className="text-muted-foreground">Manage your court dates, meetings, and deadlines.</p>
           </div>
+          
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                Add Entry
+              <Button className="gap-2 shadow-lg hover:shadow-xl transition-all" onClick={resetForm}>
+                <Plus className="w-4 h-4" /> Add Entry
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Create Diary Entry</DialogTitle>
-                <DialogDescription>
-                  Add a new entry to your legal diary.
-                </DialogDescription>
+                <DialogDescription>Add a new schedule to your legal diary.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Title</Label>
-                    <Input
-                      id="title"
-                      value={formData.title}
-                      onChange={(e) => setFormData({...formData, title: e.target.value})}
-                      required
-                    />
+                {/* Form Inputs (Same as your original code) */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="col-span-2 md:col-span-1 space-y-2">
+                    <Label htmlFor="title">Title *</Label>
+                    <Input id="title" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="suit_number">Suit Number</Label>
-                    <Input
-                      id="suit_number"
-                      value={formData.suit_number}
-                      onChange={(e) => setFormData({...formData, suit_number: e.target.value})}
-                      placeholder="e.g. SUIT/123/2024"
-                    />
+                    <Label htmlFor="suit_number">Suit No.</Label>
+                    <Input id="suit_number" value={formData.suit_number} onChange={(e) => setFormData({...formData, suit_number: e.target.value})} placeholder="SUIT/123/2024" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="next_adjourn_date">Next Adjourn Date</Label>
-                    <Input
-                      id="next_adjourn_date"
-                      type="date"
-                      value={formData.next_adjourn_date}
-                      onChange={(e) => setFormData({...formData, next_adjourn_date: e.target.value})}
-                    />
+                    <Label htmlFor="next_adjourn_date">Adjourn Date</Label>
+                    <Input id="next_adjourn_date" type="date" value={formData.next_adjourn_date} onChange={(e) => setFormData({...formData, next_adjourn_date: e.target.value})} />
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="date">Date</Label>
-                    <Input
-                      id="date"
-                      type="date"
-                      value={formData.entry_date}
-                      onChange={(e) => setFormData({...formData, entry_date: e.target.value})}
-                      required
-                    />
+                    <Label htmlFor="date">Date *</Label>
+                    <Input id="date" type="date" value={formData.entry_date} onChange={(e) => setFormData({...formData, entry_date: e.target.value})} required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="time">Time</Label>
-                    <Input
-                      id="time"
-                      type="time"
-                      value={formData.entry_time}
-                      onChange={(e) => setFormData({...formData, entry_time: e.target.value})}
-                    />
+                    <Input id="time" type="time" value={formData.entry_time} onChange={(e) => setFormData({...formData, entry_time: e.target.value})} />
                   </div>
                 </div>
 
@@ -278,139 +267,150 @@ export default function Diary() {
                   <div className="space-y-2">
                     <Label htmlFor="type">Type</Label>
                     <Select value={formData.entry_type} onValueChange={(value) => setFormData({...formData, entry_type: value})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select entry type" />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                       <SelectContent>
-                        {entryTypes.map(type => (
-                          <SelectItem key={type} value={type}>{type}</SelectItem>
-                        ))}
+                        {entryTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="priority">Priority</Label>
                     <Select value={formData.priority} onValueChange={(value) => setFormData({...formData, priority: value})}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {priorityOptions.map(priority => (
-                          <SelectItem key={priority} value={priority}>{priority}</SelectItem>
-                        ))}
+                        {priorityOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    rows={3}
-                  />
+                  <Textarea id="description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} rows={3} />
                 </div>
-
                 <DialogFooter>
-                  <Button type="submit" disabled={!formData.title || !formData.entry_date}>
-                    Create Entry
-                  </Button>
+                  <Button type="submit" disabled={!formData.title || !formData.entry_date}>Save Schedule</Button>
                 </DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
         </div>
 
-        {/* Diary Entries */}
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-2 text-muted-foreground">Loading entries...</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredEntries.map((entry) => (
-              <Card key={entry.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <CardTitle className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold mb-2">{entry.title}</h3>
-                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          {new Date(entry.entry_date).toLocaleDateString()}
-                        </div>
-                        {entry.entry_time && (
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            {entry.entry_time}
-                          </div>
-                        )}
-                        <span className="px-2 py-1 bg-muted text-muted-foreground text-xs rounded">
-                          {entry.entry_type}
-                        </span>
-                        {entry.suit_number && (
-                          <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded">
-                            {entry.suit_number}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 text-xs rounded border ${getPriorityColor(entry.priority)}`}>
-                        {entry.priority}
-                      </span>
-                      <span className={`px-2 py-1 text-xs rounded border ${getStatusColor(entry.status)}`}>
-                        {entry.status}
-                      </span>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-4">{entry.description}</p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="gap-1">
-                      <Edit className="w-3 h-3" />
-                      Edit
+        <div className="flex flex-col lg:flex-row gap-8">
+          
+          {/* LEFT: VISUAL CALENDAR */}
+          <div className="w-full lg:w-auto flex-shrink-0">
+            <div className="bg-card border border-border rounded-xl p-4 shadow-sm sticky top-6">
+               <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                className="rounded-md border bg-background"
+                modifiers={{
+                    // Highlight days that have events
+                    hasEvent: (date) => entries.some(e => isSameDay(parseISO(e.entry_date), date))
+                }}
+                modifiersStyles={{
+                    hasEvent: { fontWeight: 'bold', textDecoration: 'underline', color: 'var(--primary)' }
+                }}
+              />
+              <div className="mt-4 pt-4 border-t text-center">
+                 {selectedDate ? (
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedDate(undefined)} className="text-xs text-muted-foreground">
+                        Clear Date Filter
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="gap-1 text-red-600 hover:text-red-700"
-                      onClick={() => handleDelete(entry.id)}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      Delete
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                 ) : (
+                    <p className="text-xs text-muted-foreground">Select a date to filter events</p>
+                 )}
+              </div>
+            </div>
           </div>
-        )}
 
-        {filteredEntries.length === 0 && !loading && (
-          <div className="text-center py-12">
-            <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">
-              {searchTerm ? 'No entries found' : 'No entries yet'}
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              {searchTerm 
-                ? 'Try adjusting your search terms.'
-                : 'Create your first diary entry to get started.'
-              }
-            </p>
-            {!searchTerm && (
-              <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
-                <Plus className="w-4 h-4" />
-                Create First Entry
-              </Button>
+          {/* RIGHT: ENTRIES LIST */}
+          <div className="flex-1">
+            {/* Search Bar */}
+            <div className="relative mb-6">
+              <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input 
+                placeholder="Search by title, suit number, or description..." 
+                className="pl-10 h-12 bg-card"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              </div>
+            ) : filteredEntries.length === 0 ? (
+              <div className="text-center py-16 border-2 border-dashed rounded-xl bg-muted/30">
+                <CalendarIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-medium text-foreground mb-1">No events found</h3>
+                <p className="text-muted-foreground mb-4">
+                  {selectedDate 
+                    ? `Nothing scheduled for ${format(selectedDate, 'MMM do, yyyy')}.` 
+                    : "Your diary is empty."}
+                </p>
+                <Button variant="outline" onClick={() => setIsDialogOpen(true)}>Add Entry</Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Group heading if filtering by date */}
+                {selectedDate && (
+                    <h3 className="font-semibold text-lg mb-4 text-foreground">
+                        Schedule for {format(selectedDate, 'MMMM do, yyyy')}
+                    </h3>
+                )}
+
+                {filteredEntries.map((entry) => (
+                  <Card key={entry.id} className="hover:shadow-md transition-all group border-l-4" style={{ borderLeftColor: entry.priority === 'High' ? '#ef4444' : entry.priority === 'Medium' ? '#ca8a04' : '#16a34a' }}>
+                    <CardHeader className="py-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                             <h3 className="text-lg font-semibold">{entry.title}</h3>
+                             {entry.suit_number && <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded font-medium">{entry.suit_number}</span>}
+                          </div>
+                          
+                          <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1.5">
+                              <CalendarIcon className="w-3.5 h-3.5" />
+                              {format(parseISO(entry.entry_date), 'MMM d, yyyy')}
+                            </div>
+                            {entry.entry_time && (
+                              <div className="flex items-center gap-1.5 font-medium text-foreground">
+                                <Clock className="w-3.5 h-3.5" />
+                                {entry.entry_time}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-50" onClick={() => handleDelete(entry.id)}>
+                                <Trash2 className="w-4 h-4" />
+                            </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="py-0 pb-4">
+                        {entry.description && <p className="text-muted-foreground text-sm mt-2">{entry.description}</p>}
+                        
+                        <div className="flex gap-2 mt-4">
+                             <span className={`px-2 py-1 text-xs rounded border ${getPriorityColor(entry.priority)}`}>{entry.priority}</span>
+                             <span className={`px-2 py-1 text-xs rounded border ${getStatusColor(entry.status)}`}>{entry.status}</span>
+                             <span className="px-2 py-1 text-xs rounded border bg-muted text-muted-foreground">{entry.entry_type}</span>
+                        </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
