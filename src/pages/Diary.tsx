@@ -77,7 +77,7 @@ export default function Diary() {
     }
   }, [user]);
 
-  // --- INTELLIGENT REMINDER SYSTEM (Visual Only + Dismissable) ---
+  // --- INTELLIGENT REMINDER SYSTEM (10s Auto-Dismiss) ---
   useEffect(() => {
     if (entries.length === 0) return;
 
@@ -92,7 +92,7 @@ export default function Diary() {
 
         if (diff >= -5 && diff <= 15) {
           
-          // 👇 UPDATED: Use a function to get the 'id' for dismissal
+          // 👇 UPDATED: Auto-dismiss after 10 seconds (10000ms)
           toast(
             (id) => (
               <div 
@@ -104,13 +104,12 @@ export default function Diary() {
                   {diff <= 0 ? "Starting Now!" : `Starting in ${diff} mins`}
                 </div>
                 <p className="text-sm text-muted-foreground font-medium">{entry.title}</p>
-                <p className="text-xs text-muted-foreground opacity-70 mt-1">Click to dismiss</p>
               </div>
             ),
             { 
-              duration: Infinity, 
+              duration: 10000, // 👈 10 Seconds
               position: "top-right",
-              className: "border-l-4 border-orange-500 bg-white shadow-xl p-0", // p-0 ensures click area covers whole toast
+              className: "border-l-4 border-orange-500 bg-white shadow-xl p-0", 
             }
           );
 
