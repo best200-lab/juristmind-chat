@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, Mic, Paperclip } from "lucide-react";
+import { Send, Mic, Paperclip, Copy, Check, RotateCcw, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { NavLink } from "react-router-dom";
 import { SourceDisplay } from "@/components/SourceDisplay";
-import ReactMarkdown from "react-markdown"; // Import React Markdown
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   id: string;
@@ -23,6 +23,8 @@ export function ChatInterface() {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null); // Track copied state
+
   const { user } = useAuth();
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -32,7 +34,7 @@ export function ChatInterface() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Load session logic...
+  // Load session from URL or most recent session on mount
   useEffect(() => {
     if (!user) return;
     const urlParams = new URLSearchParams(window.location.search);
@@ -45,18 +47,17 @@ export function ChatInterface() {
     }
   }, [user]);
 
-  // Listen for new chat event...
+  // Listen for new chat event from sidebar
   useEffect(() => {
     const handleNewChatEvent = () => {
       setMessages([]);
       setCurrentSessionId(null);
     };
-    
     window.addEventListener('newChat', handleNewChatEvent);
     return () => window.removeEventListener('newChat', handleNewChatEvent);
   }, []);
 
-  // Realtime subscription...
+  // Realtime subscription for new messages
   useEffect(() => {
     if (!currentSessionId) return;
 
@@ -93,6 +94,49 @@ export function ChatInterface() {
     };
   }, [currentSessionId]);
 
+  // --- NEW ACTIONS ---
+
+  const handleCopy = (content: string, id: string) => {
+    navigator.clipboard.writeText(content);
+    setCopiedId(id);
+    toast({ description: "Copied to clipboard" });
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleFeedback = async (message: Message, isPositive: boolean) => {
+    if (!message.db_id || !user) {
+      toast({ description: "Cannot rate this message yet.", variant: "destructive" });
+      return;
+    }
+    try {
+      const { error } = await supabase.from('chat_feedback').insert({
+        message_id: message.db_id,
+        user_id: user.id,
+        is_positive: isPositive
+      });
+      if (error) throw error;
+      toast({ title: isPositive ? "Thanks!" : "Feedback Sent", description: "We use this to improve Jurist Mind." });
+    } catch (error) {
+      console.error('Feedback error:', error);
+      toast({ description: "Failed to submit feedback", variant: "destructive" });
+    }
+  };
+
+  const handleRegenerate = async () => {
+    // Find the last user message
+    const lastUserMessage = [...messages].reverse().find(m => m.sender === 'user');
+    if (lastUserMessage && !isLoading) {
+      // Remove the last AI message from UI to show it's regenerating
+      if (messages[messages.length - 1].sender === 'ai') {
+         setMessages(prev => prev.slice(0, -1));
+      }
+      // Re-process
+      await processMessage(lastUserMessage.content, true);
+    }
+  };
+
+  // --- CORE LOGIC ---
+
   const loadMostRecentSession = async () => {
     if (!user) return;
     try {
@@ -114,12 +158,7 @@ export function ChatInterface() {
   const createNewSession = async () => {
     if (!user) return null;
     try {
-      const { data, error } = await supabase
-        .from('chat_sessions')
-        .insert({ user_id: user.id, title: 'New Chat' })
-        .select()
-        .single();
-        
+      const { data, error } = await supabase.from('chat_sessions').insert({ user_id: user.id, title: 'New Chat' }).select().single();
       if (error) throw error;
       return data.id;
     } catch (error) {
@@ -130,97 +169,48 @@ export function ChatInterface() {
 
   const saveMessage = async (sessionId: string, content: string, sender: 'user' | 'ai'): Promise<string | null> => {
     try {
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .insert({ session_id: sessionId, content, sender })
-        .select('id, created_at')
-        .single();
-      
+      const { data, error } = await supabase.from('chat_messages').insert({ session_id: sessionId, content, sender }).select('id, created_at').single();
       if (error) throw error;
-      
-      await supabase
-        .from('chat_sessions')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', sessionId);
-        
+      await supabase.from('chat_sessions').update({ updated_at: new Date().toISOString() }).eq('id', sessionId);
       return data?.id || null;
     } catch (error) {
       console.error('Error saving message:', error);
-      toast({
-        title: "Warning",
-        description: "Message may not have been saved",
-        variant: "destructive",
-      });
       return null;
     }
   };
 
   const updateSessionTitle = async (sessionId: string, firstMessage: string) => {
     const title = firstMessage.length > 50 ? firstMessage.substring(0, 50) + '...' : firstMessage;
-    try {
-      await supabase.from('chat_sessions').update({ title }).eq('id', sessionId);
-    } catch (error) {
-      console.error('Error updating session title:', error);
-    }
+    try { await supabase.from('chat_sessions').update({ title }).eq('id', sessionId); } catch (error) { console.error(error); }
   };
 
-  const handleSendMessage = async () => {
-    if (!inputValue.trim()) return;
+  // Main Logic extracted to support Regenerate
+  const processMessage = async (messageContent: string, isRegeneration: boolean = false) => {
     if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to chat with JURIST MIND",
-        variant: "destructive",
-      });
+      toast({ title: "Authentication Required", description: "Please sign in.", variant: "destructive" });
       return;
     }
 
+    // Gatekeeper Check
     try {
       const { data: usageCheck, error: usageError } = await supabase.rpc('check_and_increment_usage');
-      
       if (usageError) throw usageError;
 
       if (usageCheck && usageCheck.allowed === false) {
-        let title = "Usage Limit Reached";
-        let description = "Please upgrade your plan.";
-        if (usageCheck.reason === 'expired') {
-            title = "Free Trial Expired";
-            description = "Your 3-day free trial has ended. Please upgrade to continue accessing Jurist Mind.";
-        } else if (usageCheck.reason === 'daily_limit_reached') {
-            title = "Daily Limit Reached";
-            description = "You have used all your free requests for today. Come back tomorrow or upgrade for more.";
-        } else if (usageCheck.reason === 'no_subscription') {
-            title = "No Subscription";
-            description = "We could not find an active subscription for your account.";
-        }
-
         toast({
-          title: title,
-          description: description,
+          title: "Limit Reached",
+          description: "Please upgrade your plan to continue.",
           variant: "destructive",
-          action: (
-            <Button variant="outline" size="sm" onClick={() => window.location.href = '/upgrade'}>
-              Upgrade Now
-            </Button>
-          ),
+          action: <Button variant="outline" size="sm" onClick={() => window.location.href = '/upgrade'}>Upgrade</Button>,
         });
         return;
       }
-
+      // Usage warning
       if (usageCheck.limit && (usageCheck.limit - usageCheck.requests_used) <= 2) {
-         toast({
-          title: "Usage Notice",
-          description: `You have ${usageCheck.limit - usageCheck.requests_used} requests remaining today.`,
-        });
+         toast({ title: "Usage Notice", description: `You have ${usageCheck.limit - usageCheck.requests_used} requests remaining today.` });
       }
-
     } catch (error) {
       console.error('Error checking usage:', error);
-      toast({
-        title: "Error",
-        description: "Failed to check usage limits. Please try again.",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -234,31 +224,31 @@ export function ChatInterface() {
       setCurrentSessionId(sessionId);
     }
 
-    const userMessageContent = inputValue;
-    const tempMessageId = Date.now().toString();
-    
-    const newMessage: Message = {
-      id: tempMessageId,
-      content: userMessageContent,
-      sender: "user",
-      timestamp: new Date(),
-    };
+    // If NOT regenerating, we add the user message to UI and DB
+    if (!isRegeneration) {
+        setInputValue("");
+        const tempMessageId = Date.now().toString();
+        const newMessage: Message = {
+            id: tempMessageId,
+            content: messageContent,
+            sender: "user",
+            timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, newMessage]);
 
-    setMessages(prev => [...prev, newMessage]);
-    setInputValue("");
+        const userDbId = await saveMessage(sessionId, messageContent, 'user');
+        if (userDbId) {
+            setMessages(prev => prev.map(msg => msg.id === tempMessageId ? { ...msg, db_id: userDbId } : msg));
+        }
+
+        if (messages.length === 0) {
+            await updateSessionTitle(sessionId, messageContent);
+        }
+    }
+
     setIsLoading(true);
 
-    const userDbId = await saveMessage(sessionId, userMessageContent, 'user');
-    if (userDbId) {
-      setMessages(prev => prev.map(msg => 
-        msg.id === tempMessageId ? { ...msg, db_id: userDbId } : msg
-      ));
-    }
-    
-    if (messages.length === 0) {
-      await updateSessionTitle(sessionId, userMessageContent);
-    }
-
+    // AI Placeholder
     const aiTempId = (Date.now() + 1).toString();
     const aiPlaceholder: Message = {
       id: aiTempId,
@@ -270,7 +260,7 @@ export function ChatInterface() {
 
     try {
       const formData = new FormData();
-      formData.append('question', userMessageContent);
+      formData.append('question', messageContent);
       if (sessionId) formData.append('chat_id', sessionId);
       if (user?.id) formData.append('user_id', user.id);
       
@@ -298,24 +288,15 @@ export function ChatInterface() {
           for (const line of lines) {
             if (!line.startsWith("data:")) continue;
             const dataStr = line.slice(5).trim();
-            
-            if (dataStr === "[DONE]") {
-              done = true;
-              break;
-            }
+            if (dataStr === "[DONE]") { done = true; break; }
             
             try {
               const data = JSON.parse(dataStr);
               if (data.content) {
                 fullContent += data.content;
-                setMessages(prev => prev.map(msg => 
-                  msg.id === aiTempId ? { ...msg, content: fullContent } : msg
-                ));
+                setMessages(prev => prev.map(msg => msg.id === aiTempId ? { ...msg, content: fullContent } : msg));
               }
-              if (data.type === "done") done = true;
-            } catch (parseError) {
-              console.log("Chunk parse info:", parseError);
-            }
+            } catch (parseError) { console.log("Chunk parse info:", parseError); }
           }
         }
       }
@@ -325,9 +306,7 @@ export function ChatInterface() {
           const text = await response.text();
           const data = JSON.parse(text);
           fullContent = data.answer || data.content || "I'm JURIST MIND, your legal AI assistant.";
-          setMessages(prev => prev.map(msg => 
-            msg.id === aiTempId ? { ...msg, content: fullContent } : msg
-          ));
+          setMessages(prev => prev.map(msg => msg.id === aiTempId ? { ...msg, content: fullContent } : msg));
         } catch {
           fullContent = "Response received but could not be parsed.";
         }
@@ -336,28 +315,22 @@ export function ChatInterface() {
       if (fullContent) {
         const aiDbId = await saveMessage(sessionId, fullContent, 'ai');
         if (aiDbId) {
-          setMessages(prev => prev.map(msg => 
-            msg.id === aiTempId ? { ...msg, db_id: aiDbId } : msg
-          ));
+          setMessages(prev => prev.map(msg => msg.id === aiTempId ? { ...msg, db_id: aiDbId } : msg));
         }
       }
-      
     } catch (error) {
       console.error('Error calling AI:', error);
-      toast({
-        title: "Error",
-        description: "Failed to connect to AI assistant. Please try again later.",
-        variant: "destructive",
-      });
-      
       const errorContent = "I'm having trouble connecting right now. Please try again later.";
-      setMessages(prev => prev.map(msg => 
-        msg.id === aiTempId ? { ...msg, content: errorContent } : msg
-      ));
+      setMessages(prev => prev.map(msg => msg.id === aiTempId ? { ...msg, content: errorContent } : msg));
       await saveMessage(sessionId, errorContent, 'ai');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim()) return;
+    await processMessage(inputValue);
   };
 
   const loadSession = async (sessionId: string) => {
@@ -432,7 +405,7 @@ export function ChatInterface() {
               </div>
             ) : (
               <div className="space-y-6 pb-4">
-                {messages.map((message) => (
+                {messages.map((message, index) => (
                   <div
                     key={message.id}
                     className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
@@ -449,7 +422,6 @@ export function ChatInterface() {
                           {/* Markdown Rendering */}
                           <ReactMarkdown
                             components={{
-                              // Style specific markdown elements
                               p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
                               strong: ({node, ...props}) => <span className="font-bold" {...props} />,
                               ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
@@ -475,11 +447,63 @@ export function ChatInterface() {
                         <p className="text-sm leading-relaxed text-muted-foreground animate-pulse">Thinking...</p>
                       )}
                       
+                      {/* ACTION BAR (Only for AI) */}
+                      {message.sender === "ai" && message.content && (
+                        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
+                          
+                          {/* Copy Button */}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                            onClick={() => handleCopy(message.content, message.id)}
+                            title="Copy to clipboard"
+                          >
+                            {copiedId === message.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          </Button>
+
+                          {/* Regenerate Button (Only on the latest message) */}
+                          {index === messages.length - 1 && !isLoading && (
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                onClick={handleRegenerate}
+                                title="Regenerate response"
+                            >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+
+                          <div className="flex-1" /> {/* Spacer */}
+
+                          {/* Feedback Buttons */}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 text-muted-foreground hover:text-green-600"
+                            onClick={() => handleFeedback(message, true)}
+                          >
+                            <ThumbsUp className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 text-muted-foreground hover:text-red-600"
+                            onClick={() => handleFeedback(message, false)}
+                          >
+                            <ThumbsDown className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                      {/* --- END ACTION BAR --- */}
+
                       <div className="flex items-center justify-between mt-2 gap-2">
-                         <p className="text-xs opacity-70">
-                            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                          {/* Copy Button can go here later if needed */}
+                         {message.sender === "user" && (
+                             <p className="text-xs opacity-70">
+                                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                             </p>
+                         )}
                       </div>
 
                       {message.sender === "ai" && message.sources && message.sources.length > 0 && (
