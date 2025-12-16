@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { Send, Mic, Paperclip, Copy, Check, RotateCcw, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-// Removed Input import as we are replacing it
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { NavLink } from "react-router-dom";
 import { SourceDisplay } from "@/components/SourceDisplay";
 import ReactMarkdown from "react-markdown";
-import TextareaAutosize from 'react-textarea-autosize'; // 👈 1. Import this
+import TextareaAutosize from 'react-textarea-autosize'; 
+import remarkGfm from 'remark-gfm'; // 👈 1. THIS IMPORT IS REQUIRED
 
 interface Message {
   id: string;
@@ -30,15 +30,12 @@ export function ChatInterface() {
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 👈 2. Helper to detect mobile devices
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Load session from URL or most recent session on mount
   useEffect(() => {
     if (!user) return;
     const urlParams = new URLSearchParams(window.location.search);
@@ -51,7 +48,6 @@ export function ChatInterface() {
     }
   }, [user]);
 
-  // Listen for new chat event from sidebar
   useEffect(() => {
     const handleNewChatEvent = () => {
       setMessages([]);
@@ -61,7 +57,6 @@ export function ChatInterface() {
     return () => window.removeEventListener('newChat', handleNewChatEvent);
   }, []);
 
-  // Realtime subscription for new messages
   useEffect(() => {
     if (!currentSessionId) return;
 
@@ -98,8 +93,6 @@ export function ChatInterface() {
     };
   }, [currentSessionId]);
 
-  // --- ACTIONS ---
-
   const handleCopy = (content: string, id: string) => {
     navigator.clipboard.writeText(content);
     setCopiedId(id);
@@ -135,8 +128,6 @@ export function ChatInterface() {
       await processMessage(lastUserMessage.content, true);
     }
   };
-
-  // --- CORE LOGIC ---
 
   const loadMostRecentSession = async () => {
     if (!user) return;
@@ -365,29 +356,22 @@ export function ChatInterface() {
     }
   };
 
-  // 👈 3. UPDATED KEY HANDLER
-  // Handles "Enter" differently on mobile vs desktop
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      // If NOT mobile and Shift is NOT pressed -> Send Message
       if (!e.shiftKey && !isMobile) {
         e.preventDefault();
         handleSendMessage();
       }
-      // On mobile, "Enter" naturally adds a new line (default behavior), so we do nothing.
     }
   };
 
   return (
     <div className="flex h-full bg-background">
-      {/* Main Chat Area */}
       <div className="flex flex-col flex-1 h-full w-full">
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-background/95 backdrop-blur z-10">
           <h1 className="text-xl font-semibold">JURIST MIND</h1>
         </div>
         
-        {/* Messages Area */}
         <div className="flex-1 overflow-y-auto w-full">
           <div className="max-w-4xl mx-auto p-4 md:p-6 w-full">
             {messages.length === 0 ? (
@@ -421,8 +405,9 @@ export function ChatInterface() {
                     >
                       {message.content ? (
                         <div className={`text-sm leading-relaxed break-words ${message.sender === "user" ? "prose-invert" : ""}`}>
-                          {/* Markdown Rendering */}
+                          {/* 👈 2. THIS ENABLES TABLES */}
                           <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
                             components={{
                               p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
                               strong: ({node, ...props}) => <span className="font-bold" {...props} />,
@@ -440,6 +425,27 @@ export function ChatInterface() {
                                     <pre className="text-xs" {...props} />
                                 </div>
                               ),
+                              // 👈 3. THIS STYLES TABLES
+                              table: ({node, ...props}) => (
+                                <div className="overflow-x-auto my-4 border rounded-lg">
+                                  <table className="min-w-full divide-y divide-border bg-card text-card-foreground" {...props} />
+                                </div>
+                              ),
+                              thead: ({node, ...props}) => (
+                                <thead className="bg-muted/50" {...props} />
+                              ),
+                              tbody: ({node, ...props}) => (
+                                <tbody className="divide-y divide-border bg-background" {...props} />
+                              ),
+                              tr: ({node, ...props}) => (
+                                <tr className="hover:bg-muted/50 transition-colors" {...props} />
+                              ),
+                              th: ({node, ...props}) => (
+                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider" {...props} />
+                              ),
+                              td: ({node, ...props}) => (
+                                <td className="px-4 py-3 text-sm whitespace-nowrap" {...props} />
+                              ),
                             }}
                           >
                             {message.content}
@@ -449,7 +455,6 @@ export function ChatInterface() {
                         <p className="text-sm leading-relaxed text-muted-foreground animate-pulse">Thinking...</p>
                       )}
                       
-                      {/* ACTION BAR (Only for AI) */}
                       {message.sender === "ai" && message.content && (
                         <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
                           <Button 
@@ -515,7 +520,6 @@ export function ChatInterface() {
           </div>
         </div>
 
-        {/* 👈 4. INPUT AREA REPLACED */}
         <div className="flex-shrink-0 p-3 md:p-6 bg-background">
           <div className="max-w-4xl mx-auto w-full">
             <div className="flex gap-2 md:gap-3 items-end bg-background border border-border rounded-3xl p-2 focus-within:ring-2 focus-within:ring-primary/20 transition-all shadow-sm">
@@ -528,7 +532,6 @@ export function ChatInterface() {
               </Button>
               
               <div className="flex-1 relative min-h-[44px] flex items-center">
-                {/* AUTO-EXPANDING TEXTAREA */}
                 <TextareaAutosize
                   minRows={1}
                   maxRows={5}
@@ -559,7 +562,6 @@ export function ChatInterface() {
               </div>
             </div>
             
-            {/* Terms and Conditions */}
             <div className="text-center mt-3 md:mt-4">
               <p className="text-[10px] md:text-xs text-muted-foreground">
                 By using Jurist Mind, you consent to the{' '}
